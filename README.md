@@ -1,6 +1,6 @@
 # LC_POM
 Simulate polarized optical microscopy(POM) image from director field.
-## Read_vtk.oy 
+## Read_vtk.py 
 	input: 	.vtk file 
 	output:	Frame-#-Coordinates.txt and Frame-#-Directors.txt
 
@@ -22,13 +22,15 @@ X = np.loadtxt(fname,dtype = np.float32);
 ```
 ## cross-pol.py
 Computes the polarized image with various options. 
-a. Input mode: 
+- Input mode: 
 	1. single image 
 	2. batch processing (specified by file names)
 	3. batch processing (specified by frames)
-b. Polarizer angle: 
+- Polarizer angle: 
 	0-180 degrees
-c. Color mode:
+- Color mode:
 	1. Single wave length
 	2. Simplified color
 	3. Full spectrum color
+   
+
