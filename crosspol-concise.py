@@ -18,41 +18,50 @@ cmap = plt.get_cmap('jet')
 plt.style.use('./large_plot.mplstyle')
 
 from PIL import Image,ImageOps
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 
-# ### Reference:
+#
+#  ### Reference:
 # Doane J. Appl. Phys. 69(9) 1991
 # Microscope textures of nematic droplets in polymer dispersed liquid crystals
 #
 # Alberto J. Phys D: Appl. Phys.52 (2019) 213001
 # Simulating optical polarizing microscopy textures using Jones calculus: a review exemplified with nematic liquid crystal tori
+#
 
-# In[2]:
-
-
-plt.style.use('./large_plot.mplstyle')
+# In[ ]:
 
 
-# In[3]:
 
-
-def calc_image (X, alpha_p , n_o , n_e , wavelength ):
+def calc_image (X, alpha_p , n_o , n_e , wavelength):
     print ("Calculating light intensity")
     print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
-    print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (n_o, n_e, n_e-n_o))
+    print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
     # the header two lines
 
     [Nx, Ny, Nz] = np.asarray (X[0, :3], dtype = np.int32)
-    [dx, dy, dz] = X[0, 3:]
-    [x_min, x_max, y_min, y_max, z_min, z_max] = X[1]
+    [dx, dy, dz] = X[0, 3:6]
+    [x_min, x_max, y_min, y_max, z_min, z_max] = X[1,0:6]
+    print ("Data shape: ", X.shape)
     print ("Number of data points:", Nx*Ny*Nz)
     print ("dx = %.2f" %(dx))
+
     # the actual data
-    rr = X[2:,:3]; nn = X[2:,3:]
+    rr = X[2:,:3]; nn = X[2:,3:6]
+
+    # Determine if the input file has S information
+    hasS = False
+    if (X.shape[1] == 7):
+        hasS = True
+        print ("Data S information, n_e and n_o has spatial variation.")
+
+
     # The non-zero n
     idx = np.linalg.norm(nn,axis=1) > 1.0E-3
 
     rot = np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p),0],[np.sin (alpha_p), np.cos(alpha_p),0],[0,0,1]])
+    #rot2 =np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p)],[np.sin (alpha_p), np.cos(alpha_p)]])
     Intensity = np.zeros((Nx,Ny))
     for ix in range(Nx):
 
@@ -61,18 +70,18 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength ):
         for iy in range(Ny):
 
             # Initialize
+
             Pold = np.eye(2,dtype=complex)
             Sr = np.eye(2, dtype = complex)
             gamma0 = 0 # incident light direction
 
-            phio = 2*np.pi*n_o*dz/wavelength # To calculate the rotation matrix
 
             for iz in range(Nz):
             #for iz in range(int (Nz*(0.5-0.05)),int (Nz*(0.5+0.05))):
                 iiz = iz + iy*Nx + ix*Ny*Nz # the id of the cell
                 if ( idx[iiz] ): # if the director is non-zero
 
-                    #director = nn[iiz]
+                    director = nn[iiz]
                     director = np.matmul(rot, nn[iiz])
                     if ( director[2] < 0 ):
                         director[2] *= -1.0 # make it point in positive z
@@ -82,13 +91,20 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength ):
                     gamma = gamma1 - gamma0
                     #gamma = gamma0 - gamma1  # the gamma1 and the gamma0 are the alphas in the paper
                     #gamma0 = gamma1 # take this to be the next "incident light polarization"
-                    denom = [n_o*np.sin(beta), n_e*np.cos(beta)]
 
-                    nebeta = n_o*n_e/np.linalg.norm(denom) #beta is gamma in the paper
+                    if (hasS == False):
+                        phio = 2*np.pi*n_o*dz/wavelength # To calculate the rotation matrix
+                        denom = [n_o*np.sin(beta), n_e*np.cos(beta)]
+                        nebeta = n_o*n_e/np.linalg.norm(denom) #beta is gamma in the paper
+                    else:
+                        phio = 2*np.pi*n_o[iiz]*dz/wavelength
+                        denom = [n_o[iiz]*np.sin(beta), n_e[iiz]*np.cos(beta)]
+                        nebeta = n_o[iiz]*n_e[iiz]/np.linalg.norm(denom) #beta is gamma in the paper
+
+
                     phie = 2*np.pi*nebeta*dz/wavelength
                     cs_phie = np.cos(phie) + 1j*np.sin(phie) # S_22
                     cs_phio = np.cos(phio) + 1j*np.sin(phio) # S_11
-
 
                     Sr[0][0] = np.power(np.cos(gamma),2)*cs_phie  + np.power(np.sin(gamma),2)*cs_phio
                     Sr[0][1] = -np.sin(gamma)*np.cos(gamma)*( cs_phie - cs_phio )
@@ -100,6 +116,8 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength ):
 
             ep = np.asarray([1,0], dtype = complex)
             ea = np.asarray([0,1], dtype = complex)
+            #ep = np.matmul (rot2, ep)
+            #ea = np.matmul(rot2, ea)
             res = np.matmul (ea, np.matmul (Pold, ep))
 
             Intensity[ix][iy] = np.real (np.conj(res)*res)
@@ -109,14 +127,21 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength ):
     return Intensity
 
 
+# In[ ]:
+
+
+
 # # Refractive index
 # The refractive indices depend on wavelengths (and temperature).
 #
 # Reference:
 #
 # WU et al. Optical Engineering 1993 32(8) 1775
-
+# Li et al. Journal of Applied Physics 96, 19 (2004)
 # In[4]:
+
+
+# In[ ]:
 
 
 def calc_n(lamb):
@@ -131,9 +156,28 @@ def calc_n(lamb):
     return n_o, n_e
 
 
-# # Calculate image and plot
+# In[ ]:
 
-# In[5]:
+
+def calc_n_s(lamb,s):
+
+    l1 = 0.210; l2 = 0.282;
+    n0e = 0.455; g1e = 2.325; g2e = 1.397
+    n0o = 0.414; g1o = 1.352; g2o = 0.470
+
+    n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
+    n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
+
+    S0 = 0.76
+    delta_n = (n_e - n_o)/S0
+    abt = (n_e + 2*n_o)/3.0
+    n_e = abt + 2/3*s*delta_n
+    n_o = abt - 1/3*s*delta_n
+    return n_o, n_e
+
+
+# In[ ]:
+
 
 
 def n_to_intensity(fname, wavelength, alpha_p):
@@ -141,15 +185,24 @@ def n_to_intensity(fname, wavelength, alpha_p):
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
 
+    # If X has a 7 entries, then use the S parameters for calculating
+    hasS = (X.shape[1] == 7)
+
     # Get refractive indices
-    n_o, n_e = calc_n (wavelength)
+    if (hasS):
+        print ("Max and Mean of order parameter are: %.3f, %.3f" % (X[0,6],X[1,6]))
+        ss = X[2:,6]
+        n_o, n_e = calc_n_s (wavelength, ss)
+    else:
+        print ("No S data available, assume T= 25 Celsius")
+        n_o, n_e = calc_n (wavelength)
 
     # Calculate image
     tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength)
     return tmp
 
 
-# In[6]:
+# In[ ]:
 
 
 def plot_image (intensity, vmax = None,savename = None):
@@ -165,40 +218,48 @@ def plot_image (intensity, vmax = None,savename = None):
     im.axes.get_yaxis().set_visible(False);
     ax.axis("off")
     plt.tight_layout(pad = 0)
-    fig.set_size_inches(0.1*image.shape[1],0.1*image.shape[0])
+    dpi = matplotlib.rcParams['savefig.dpi']
+    fig.set_size_inches(5*image.shape[1]/dpi,5*image.shape[0]/dpi)
     if (savename != None):
         plt.savefig(savename,pad_inches=0)
     return
 
 
-# In[7]:
+# In[ ]:
+
 
 
 def plot_image_rgb (image_rgb, vmax = None,savename = None):
-    fig, axes = plt.subplots(1,3)
+    fig, axes = plt.subplots(1,3, sharey = True)
     color_maps = ["Reds", "Greens", "Blues"] # These are the three color map keys
+    if (vmax == None):
+            print ("vmax not specified. set auto vmax")
+            vmax = np.max(image_rgb)
+            if (vmax>0.8 and vmax < 1.05):
+                vmax = 1.0
+            print ("vmax =", vmax)
     for i in range (3):
         ax = axes[i]
         image = image_rgb[:,:,i]
-        if (vmax == None):
-            print ("Set auto vmax")
-            vmax = np.max(image)
         im = ax.imshow(image, cmap=plt.get_cmap(color_maps[i]),interpolation='bicubic',vmin = 0,vmax = vmax)
         #ax.set_title ("0$^o$")
         ax.set_ylim(0,image.shape[0]-1) # Seems that -1 is necessary?
         ax.set_xlim(0,image.shape[1]-1)
-        ax.axis("off")
+        #ax.axis("off")
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
 
-    fig.set_size_inches(0.3*image.shape[1],0.1*image.shape[0])
-    plt.tight_layout()
+    dpi = matplotlib.rcParams['savefig.dpi']
+    fig.set_size_inches(3*5*image.shape[1]/dpi,5*image.shape[0]/dpi)
+
+    plt.tight_layout(pad=0)
     if (savename != None):
         plt.savefig(savename)
 
     return
 
 
-
-# In[8]:
+# In[ ]:
 
 
 def plot_hist (ys, savename=None):
@@ -208,8 +269,9 @@ def plot_hist (ys, savename=None):
     upper = np.max(ys)
     if (upper<1.0E-2):
         upper = 1.0
-    for image in ys:
-        ax.hist(image.flatten(), bins = np.linspace (0,upper,51), density = True,alpha = 0.55);
+    image = ys
+    #for image in ys:
+    ax.hist(image.flatten(), bins = np.linspace (0,upper,51), density = True);
     ax.set_yscale ("log")
     ax.set_xlabel("Intensity")
     plt.tight_layout()
@@ -218,7 +280,7 @@ def plot_hist (ys, savename=None):
     return
 
 
-# In[63]:
+# In[ ]:
 
 
 def plot_hist_rgb (ys, savename=None):
@@ -242,11 +304,7 @@ def plot_hist_rgb (ys, savename=None):
     return
 
 
-# # Naive RGB
-
-# ![visible_light_spectrum.jpg](attachment:visible_light_spectrum.jpg)
-
-# In[10]:
+# In[ ]:
 
 
 def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 ):
@@ -254,13 +312,29 @@ def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 ):
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
 
+    # Test if file has S information
+    hasS = (X.shape[1] == 7)
+    if (hasS):
+        print ("Max and Mean of order parameter are: %.3f, %.3f" % (X[0,6],X[1,6]))
+        ss = X[2:,6]
+    else:
+        print ("No S data available, assume T= 25 Celsius")
+
     # Calculate image
-    n_o, n_e = calc_n (wavelengths[0])
-    r =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelengths[0])
-    n_o, n_e = calc_n (wavelengths[1])
-    g =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelengths[1])
-    n_o, n_e = calc_n (wavelengths[2])
-    b =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelengths[2])
+    res =[]
+    for wave in wavelengths:
+        print ("%d" % (wave*1000), end = '\t')
+        n_o, n_e = calc_n (wave)
+        # Get refractive indices
+        if (hasS):
+            n_o, n_e = calc_n_s (wave, ss)
+        else:
+            n_o, n_e = calc_n (wave)
+        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave))
+    r = res[0]
+    g = res[1]
+    b = res[2]
+
     return np.asarray([r.T,g.T,b.T]).T
 
 
@@ -275,6 +349,10 @@ def calc_vmax(image1, image2):
 
 
 # In[12]:
+
+
+# In[ ]:
+
 
 
 """
@@ -309,14 +387,18 @@ def RGB_to_BW (image,savename = None ):
     return np.asarray(im2/255.0, dtype = np.float32)
 
 
-# # Full RGB
-
-# In[13]:
+# In[ ]:
 
 
 def g_p(x, mu, sig1, sig2):
     y = (x<mu)*np.exp(-(x-mu)**2/ (2*sig1**2)) + (x>=mu)*np.exp(-(x-mu)**2/ (2*sig2**2))
     return y
+
+
+# In[ ]:
+
+
+
 
 
 # In[14]:
@@ -350,6 +432,9 @@ def _convert(array, matrix, dtype, funcname):
     if dtype is not None:
         array = array.astype(dtype, copy=True)
     return array
+
+
+# In[ ]:
 
 
 def xyz2rgb(xyz, dtype=None):
@@ -392,7 +477,7 @@ def xyz2rgb(xyz, dtype=None):
     return rgb_linear
 
 
-# In[16]:
+# In[ ]:
 
 
 """
@@ -402,23 +487,34 @@ def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha
 
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
-
+    # If X has a 7 entries, then use the S parameters for calculating
+    hasS = (X.shape[1] == 7)
+    if (hasS):
+        print ("Max and Mean of order parameter are: %.3f, %.3f" % (X[0,6],X[1,6]))
+        ss = X[2:,6]
+    else:
+        print ("No S data available, assume T= 25 Celsius")
     # Calculate image
     res =[]
     for wave in wavelengths:
         print ("%d" % (wave*1000), end = '\t')
         n_o, n_e = calc_n (wave)
+        # Get refractive indices
+        if (hasS):
+            n_o, n_e = calc_n_s (wave, ss)
+        else:
+            n_o, n_e = calc_n (wave)
         res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave))
     res = np.asarray(res)
     res = np.transpose (res, [1,2,0])
     res2 = np.copy (res)
 
 
-    print ("Angle %d" % int(180*alpha_p/np.pi))
+    #print ("Angle %d" % int(180*alpha_p/np.pi))
     return res2 # pixels_y *pixels_x * N_waves
 
 
-# In[34]:
+# In[ ]:
 
 
 def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0):
@@ -450,9 +546,21 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0):
     return res
 
 
+
 # # Let's start to make POM images!
 
-# In[70]:
+# In[ ]:
+
+
+mode = num_to_mode(3)
+angle = 110
+#POM_of_Frame("test.txt", mode,angle)
+POM_of_Frame("testS.txt", mode,angle)
+
+
+# In[ ]:
+
+
 
 
 """
@@ -481,12 +589,17 @@ def POM_of_Frame (frame, mode ,angle , wl = None):
 
     # Calculate images according to mode
     if (mode == "Single-wavelength"):
-        if wl is None:
-            wl = 0.60
-        wave = wl
         print ("Single wavelength calculations")
-        # Calculate for single wavelength
-        image = n_to_intensity(fname, wavelength = wave, alpha_p = angle)
+        if wl is None:
+            wl = input ("Please input wavelengths in microns: (0.4~0.68 for visible light) \t")
+            wl = float(wl)
+        if ((wl > 0.35 and wl < 0.7) == False):
+            print ("Invalid wavelength")
+        else:
+            print (wl)
+        wave = wl
+
+        image = n_to_intensity(fname, wave, angle)
 
         ## Plot it
         picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(wave*1000))+".png"
@@ -514,6 +627,7 @@ def POM_of_Frame (frame, mode ,angle , wl = None):
 
         # Initialize continuous wavelengths
         if wl is None:
+            print ("Default wavelengths")
             wl = np.arange(.400, .681, .02)
 
         angle1 = angle
@@ -555,10 +669,8 @@ def num_to_mode (num):
     else: return 0
 # In[72]:
 if __name__ == "__main__":
-    # Inputs
-    case = input ("Please select input mode. [1-3] \n 1. Single image. \n 2.Batch processing.\
-    Names shall be specified in ./tmp-filenames.txt. The exact director files need to to stored in 'Interpolated_Director_Fields' folder.\n \
-    3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
+
+    case = input ("Please select input mode. [1-3]\n 1. Single image.\n 2.Batch processing.\n\t Names shall be specified in ./tmp-filenames.txt. \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.\n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
     case = int (case)
     if (isinstance (case, int) == False):
         sys.exit("Case is not integer")
@@ -589,7 +701,10 @@ if __name__ == "__main__":
 
         with open("./tmp-filenames.txt") as fp:
             for name in fp:
-                POM_of_Frame(name.strip('\n'), mode,angle)
+                if (num == 1):
+                    POM_of_Frame(name.strip('\n'), mode,angle)
+                else:
+                    POM_of_Frame(name.strip('\n'), mode, angle,wl = np.arange(.400, .681, .014))
 
 
     elif (case ==3):
@@ -599,6 +714,7 @@ if __name__ == "__main__":
         frames= np.loadtxt("tmp-frames.txt", dtype = np.int32)
 
         for frame in frames:
-            POM_of_Frame(frame, mode, angle)
+            #POM_of_Frame(frame, mode, angle)
+            POM_of_Frame(frame, mode, angle,wl = np.arange(.400, .681, .014))
     else:
         print ("Error, wrong case.")
