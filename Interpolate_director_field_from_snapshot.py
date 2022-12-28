@@ -26,6 +26,19 @@ cmap = plt.get_cmap('jet')
 plt.style.use('./large_plot.mplstyle')
 
 
+# In[ ]:
+
+
+fig, ax = plt.subplots()
+for x in np.linspace (0,1,10):
+    ax.plot (x, x,color = cmap (x),marker = 'o')
+
+
+# In[ ]:
+
+
+
+
 
 # In[4]:
 
@@ -62,10 +75,17 @@ def normalize(nn):
 Method should be quintic, cubit or thin_plate_spline
 """
 def interpolate (rr, rr0, nn0, method = 'thin_plate'):
-    interp = RBFInterpolator(rr0, nn0, kernel = method)
+
+    interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
     nn = interp (rr)
     nn = normalize (nn)
     return nn
+
+def interpolate_s (rr, rr0,  ss0 ,method = 'thin_plate'):
+
+    interp2 = RBFInterpolator(rr0, ss0, kernel = method, smoothing = 0.1, neighbors = 12)
+    ss = interp2 (rr)
+    return ss
 
 
 # # Start to interpolate
@@ -78,6 +98,10 @@ def ellip1 (r, L,center):
     y = (r[1]-center[1])*2/L[1]
     z = (r[2]-center[2])*2/L[2]
     return x**2+y**2 +z**2-1
+
+
+# In[ ]:
+
 
 
 # In[9]:
@@ -162,7 +186,11 @@ def find_L(coords):
 # In[12]:
 
 
-def make_grid(L,dx = 0.15):
+# In[ ]:
+
+
+
+def make_grid(L,dx):
     # Box separation grid size: 0.1um
     # Padding: 10%
 
@@ -195,18 +223,36 @@ def make_grid(L,dx = 0.15):
 # In[13]:
 
 
-def plot_final (rr, nn, coords, directors, l_box, frame,directory2):
-    idx2 = np.where (np.abs(rr[:,2]-0)<0.15)
-    rr2 = rr[idx2]; nn2 = nn[idx2]
+# In[ ]:
+
+
+
+
+
+def plot_final (rr, nn, ss, coords, directors, l_box, frame,directory2):
+    signs =np.power (-1,directors[:,0]<0)
+    directors[:,0] = directors[:,0]*signs
+    directors[:,1] = directors[:,1]*signs
+    directors[:,2] = directors[:,2]*signs
+
+    idx2 = np.where (np.abs(rr[:,2]-0)<0.025*np.max(coords[:,2]))
+    rr2 = rr[idx2]; nn2 = nn[idx2];
+    if (ss.any()!= None):
+        ss2 = ss[idx2]
+
+    signs =np.power (-1,nn2[:,0]<0)
+    nn2[:,0] = nn2[:,0]*signs
+    nn2[:,1] = nn2[:,1]*signs
+    nn2[:,2] = nn2[:,2]*signs
 
     idx3 =np.where (np.abs(coords[:,2]-0)<0.2)
     rr0 = coords[idx3]; nn0 = directors[idx3]
 
     fig, ax = plt.subplots(figsize = (l_box[1],l_box[0]))
 
-    ax.quiver(rr2[:,1], rr2[:,0],  nn2[:,1], nn2[:,0], scale = 50, width = 1.0E-3,color = cmap (2*np.arccos(nn2[:,1])/np.pi), pivot = 'mid',headwidth =0, label = 'quintic')
-    ax.set_xlabel ("y")
-    ax.set_ylabel ("x")
+    ax.quiver(rr2[:,1], rr2[:,0],  nn2[:,1], nn2[:,0], scale = 50, width = 1.0E-3,color = cmap (np.arctan(nn2[:,1]/(nn2[:,0]+1.0E-3)/np.pi + 1/2)), pivot = 'mid',headwidth =0, label = 'quintic')
+    ax.set_xlabel ("x")
+    ax.set_ylabel ("y")
 
 
     ax.set_xlim(-l_box[1]/2,l_box[1]/2)
@@ -218,6 +264,18 @@ def plot_final (rr, nn, coords, directors, l_box, frame,directory2):
     fname = directory2 + "Frame-" + str(frame) +"-overlay.png"
     plt.savefig(fname)
 
+    if (ss.any()!= None):
+        fig, ax = plt.subplots(figsize = (l_box[1],l_box[0]))
+
+        ax.quiver(rr2[:,1], rr2[:,0],  nn2[:,1], nn2[:,0], scale = 50, width = 1.0E-3,color = cmap (ss2/max(ss2)), pivot = 'mid',headwidth =0, label = 'quintic')
+        ax.set_xlabel ("x")
+        ax.set_ylabel ("y")
+        ax.set_xlim(-l_box[1]/2,l_box[1]/2)
+        ax.set_ylim(-l_box[0]/2,l_box[0]/2)
+        plt.tight_layout()
+        fname = directory2 + "Frame-" + str(frame) +"-interp2.png"
+        plt.savefig(fname)
+
     return
 
 
@@ -225,13 +283,13 @@ def plot_final (rr, nn, coords, directors, l_box, frame,directory2):
 
 
 def write_txt(rr, nn, consts0, l_box,frame,directory2):
-    [nx,ny,nz,dx,dx,dx] = consts0
+    [nx,ny,nz,dx,dy,dz] = consts0
     X0 = np.hstack([rr,nn])
     header = 'Interpolated director file \n'
     info0 = "Firstline:\nNx"+"\t" + "Ny" +"\t"+ "Nz"+"\t" +"dx"+"\t" + "dy" +"\t"+ "dz"+"\n"
     info1 = "Secondline:\nX_min"+"\t" + "X_max" +"\t"+ "Y_min"+"\t" +"Y_max"+"\t" + "Z_min" +"\t"+ "Z_max"+"\n"
     info2 =  "Third line+ : data\nx \t y \t z \t n_x \t n_y \t n_z \n"
-    line0 = np.asarray([nx,ny,nz,dx,dx,dx])
+    line0 = np.asarray([nx,ny,nz,dx,dy,dz])
     line1 = np.asarray ([-l_box[0]/2, l_box[0]/2,-l_box[1]/2, l_box[1]/2,-l_box[2]/2, l_box[2]/2])
 
     X = np.vstack([line0,line1, X0])
@@ -239,6 +297,20 @@ def write_txt(rr, nn, consts0, l_box,frame,directory2):
     fname = directory2 + "Frame-"+str(frame)+"-interpolated-directors.txt"
     np.savetxt(fname, X, fmt='%.4f', delimiter= '\t',header=top)
 
+def write_txt_s(rr, nn, ss,consts0, l_box,frame,directory2):
+    [nx,ny,nz,dx,dy,dz] = consts0
+    X0 = np.hstack([rr,nn,ss])
+    header = 'Interpolated director file \n'
+    info0 = "Firstline:\nNx"+"\t" + "Ny" +"\t"+ "Nz"+"\t" +"dx"+"\t" + "dy" +"\t"+ "dz"+"\t"+ "max (ss)"+"\n"
+    info1 = "Secondline:\nX_min"+"\t" + "X_max" +"\t"+ "Y_min"+"\t" +"Y_max"+"\t" + "Z_min" +"\t"+ "Z_max"+"\t"+ "mean (ss)"+"\n"
+    info2 =  "Third line+ : data\nx \t y \t z \t n_x \t n_y \t n_z \t S\n"
+    line0 = np.asarray([nx,ny,nz,dx,dy,dz, np.max(ss)])
+    line1 = np.asarray ([-l_box[0]/2, l_box[0]/2,-l_box[1]/2, l_box[1]/2,-l_box[2]/2, l_box[2]/2, np.mean(ss[np.where(ss>0)] )])
+
+    X = np.vstack([line0,line1, X0])
+    top = header+info0+info1+info2
+    fname = directory2 + "Frame-"+str(frame)+"-interpolated-directors.txt"
+    np.savetxt(fname, X, fmt='%.4f', delimiter= '\t',header=top)
 
 # In[34]:
 
@@ -246,31 +318,52 @@ def write_txt(rr, nn, consts0, l_box,frame,directory2):
 """
 The function that takes all the previous functions to read, interpolate and plot
 """
-def interp_frame (frame, delta = 0.15, directory1 = "./Original_Director_Field/",directory2 = "./Interpolated_Director_Field/"):
+def interp_frame (frame, delta = 0.15,scaling = 1.0, directory1 = "./Original_Director_Field/",directory2 = "./Interpolated_Director_Field/"):
 
     # Read original director field from directory1
     fname = directory1+"Frame-" + str(frame) +"-DirectorField.txt"
     X = np.loadtxt(fname,dtype = np.float32)
-    coords = X[:,:3];directors = X[:,3:]
+    if (X.shape[1] ==7):
+        print ("Has S")
+        ss0 = X[:,6]
+    else:
+        ss0 = None
+        ss = None
+    coords = X[:,:3]*scaling;directors = X[:,3:6]
     print ("Coords shape",coords.shape)
     print ("Directors shape", directors.shape)
+    signs = np.power(-1, (np.sum (np.multiply(directors,coords),1) >0 ))
+    #signs =np.power (-1,directors[:,0]<0)
+    directors[:,0] = directors[:,0]*signs
+    directors[:,1] = directors[:,1]*signs
+    directors[:,2] = directors[:,2]*signs
 
     # Find ellipsoid size
-    L, centroid = find_L(coords)
+    #L, centroid = find_L(coords)
+    L = np.asarray([max(coords[:,0])-min(coords[:,1]),max(coords[:,1])-min(coords[:,0]),max(coords[:,2])-min(coords[:,2])])
+    centroid = np.asarray ([np.mean(coords[:,1]),np.mean(coords[:,1]),np.mean(coords[:,2])])
+    print ("L:", L, "Centroid:", centroid)
 
     # Make grid according to size of the ellipsoid
     consts0, l_box, rr, nn = make_grid(L,dx = delta)
 
+    print ("Grid is made. ")
     # Interpolate on actual grid
     nn = interpolate (rr, coords, directors, method = 'thin_plate_spline')
+    ss = interpolate_s (rr, coords, ss0, method = 'thin_plate_spline')
     idx = np.where (ellip1(rr.T,L, centroid)>0)
     nn[idx] = 0
+    ss[idx] = 0
 
     # Plot an overlay
-    plot_final (rr, nn, coords, directors, l_box, frame, directory2)
+    plot_final (rr, nn, ss, coords, directors, l_box, frame, directory2)
 
     # Save the interpolated director field from directory2
-    write_txt(rr, nn, consts0, l_box,frame,directory2)
+    if (X.shape[1] ==7):
+        ss = np.reshape(ss, (len(ss),1))
+        write_txt_s(rr, nn,ss, consts0, l_box,frame,directory2)
+    else:
+        write_txt(rr, nn,ss, consts0, l_box,frame,directory2)
 
     return
 
@@ -278,35 +371,43 @@ def interp_frame (frame, delta = 0.15, directory1 = "./Original_Director_Field/"
 # In[31]:
 
 
-def plot_from_existed(frame,directory1 = "./Original_Director_Field/",directory2 = "./Interpolated_Director_Field/"):
+# In[ ]:
+
+
+
+
+def plot_from_existed(frame,scaling = 1.0,directory1 = "./Original_Director_Field/",directory2 = "./Interpolated_Director_Field/"):
 
     # Load the interpolated field
     fname = directory2+"Frame-"+str(frame)+"-interpolated-directors.txt"
     X = np.loadtxt(fname,dtype = np.float32);
     [Nx, Ny, Nz] = np.asarray (X[0, :3], dtype = np.int32)
-    [dx, dy, dz] = X[0, 3:]
-    [x_min, x_max, y_min, y_max, z_min, z_max] = X[1]
-
-    l_box = [x_max-x_min, y_max-y_min, z_max-z_min]
-    # the Original Director Field
-    rr = X[2:,:3]; nn = X[2:,3:]
+    [dx, dy, dz] = X[0, 3:6]
+    [x_min, x_max, y_min, y_max, z_min, z_max] = X[1,0:6]
+    print ("Number of data points:", Nx*Ny*Nz)
+    print ("dx = %.2f" %(dx))
+    # the actual data
+    rr = X[2:,:3]; nn = X[2:,3:6]
     fname = directory1+"Frame-" + str(frame) +"-DirectorField.txt"
     X = np.loadtxt(fname,dtype = np.float32)
-    coords = X[:,:3];directors = X[:,3:]
+    coords = X[:,:3]*scaling;directors = X[:,3:6]
 
     #plot and save
-    plot_final (rr, nn, coords, directors, l_box, frame, directory2)
+    plot_final (rr, nn,ss, coords, directors, l_box, frame, directory2)
 
     return
 
-
-# # Here is the main program
-
-# In[21]:
-
-
 if __name__ == "__main__":
+
+    interp_frame(frame, delta = 0.20,scaling = 21.0/50.0)
+    """
+    with open("./tmp-filenames.txt") as fp:
+            for name in fp:
+                #POM_of_Frame(name.strip('\n'), mode,angle)
+                POM_of_Frame(name.strip('\n'), mode, angle,wl = np.arange(.400, .681, .014))
+
     frames= np.loadtxt("tmp-frames.txt", dtype = np.int32)
     for frame in frames:
         print(frame)
         interp_frame(frame)
+    """
