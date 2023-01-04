@@ -1,24 +1,32 @@
+
+# coding: utf-8
+
+# In[ ]:
+
+
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 import sys
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from os import path
-from matplotlib import cm
+import time
+import numpy as np
+from scipy.integrate import quad,simpson
+
 import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from PIL import Image,ImageOps
+from matplotlib import cm
 
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
 
-cmap = plt.get_cmap('jet')
 plt.style.use('./large_plot.mplstyle')
 
-from PIL import Image,ImageOps
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+
+#from mpl_toolkits.mplot3d import Axes3D
+#cmap = plt.get_cmap('jet')
 
 
 #
@@ -34,12 +42,15 @@ from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 
 
-def calc_image (X, alpha_p , n_o , n_e , wavelength):
+def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
     print ("Calculating light intensity")
     print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
     print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
-    # the header two lines
+    print ("Applying Fresnel equation to calcuculate transmission?", toReflect)
+    n2_ave = np.mean((2*n_o+n_e)/3)
+    n1 = 1.33
 
+    # the header two lines
     [Nx, Ny, Nz] = np.asarray (X[0, :3], dtype = np.int32)
     [dx, dy, dz] = X[0, 3:6]
     [x_min, x_max, y_min, y_max, z_min, z_max] = X[1,0:6]
@@ -70,15 +81,15 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength):
         for iy in range(Ny):
 
             # Initialize
-
             Pold = np.eye(2,dtype=complex)
             Sr = np.eye(2, dtype = complex)
             gamma0 = 0 # incident light direction
 
-
+            iiz2 = -1
             for iz in range(Nz):
             #for iz in range(int (Nz*(0.5-0.05)),int (Nz*(0.5+0.05))):
                 iiz = iz + iy*Nx + ix*Ny*Nz # the id of the cell
+
                 if ( idx[iiz] ): # if the director is non-zero
 
                     director = nn[iiz]
@@ -113,33 +124,35 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength):
 
                     Pnew = np.matmul(Sr,Pold)
                     Pold = Pnew
+                    iiz2 = np.copy(iiz)
 
             ep = np.asarray([1,0], dtype = complex)
             ea = np.asarray([0,1], dtype = complex)
             #ep = np.matmul (rot2, ep)
             #ea = np.matmul(rot2, ea)
             res = np.matmul (ea, np.matmul (Pold, ep))
-
             Intensity[ix][iy] = np.real (np.conj(res)*res)
+            if (iiz2>0 and toReflect == True):
+                xo, yo, zo = rr[iiz2]
+                theta_i = np.arcsin(np.sqrt ((xo**2 + yo**2)/(xo**2+yo**2+zo**2)))
+                T1, T2 = Fresnel (theta_i, n1, n2_ave)
+                trans = np.cos(theta_i)**2*T1**2 + np.sin(theta_i)**2*T2**2
+                #print (theta_i*180/np.pi, trans)
+                Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
 
     print("\n")
 
     return Intensity
 
 
-# In[ ]:
-
-
-
-# # Refractive index
-# The refractive indices depend on wavelengths (and temperature).
 #
-# Reference:
+#   Refractive index
+#  The refractive indices depend on wavelengths (and temperature).
 #
-# WU et al. Optical Engineering 1993 32(8) 1775
-# Li et al. Journal of Applied Physics 96, 19 (2004)
-# In[4]:
-
+#  Reference:
+#
+#  WU et al. Optical Engineering 1993 32(8) 1775
+#  Li et al. Journal of Applied Physics 96, 19 (2004)
 
 # In[ ]:
 
@@ -179,8 +192,7 @@ def calc_n_s(lamb,s):
 # In[ ]:
 
 
-
-def n_to_intensity(fname, wavelength, alpha_p):
+def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
 
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
@@ -198,7 +210,7 @@ def n_to_intensity(fname, wavelength, alpha_p):
         n_o, n_e = calc_n (wavelength)
 
     # Calculate image
-    tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength)
+    tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength, toReflect = toReflect)
     return tmp
 
 
@@ -226,7 +238,6 @@ def plot_image (intensity, vmax = None,savename = None):
 
 
 # In[ ]:
-
 
 
 def plot_image_rgb (image_rgb, vmax = None,savename = None):
@@ -307,7 +318,7 @@ def plot_hist_rgb (ys, savename=None):
 # In[ ]:
 
 
-def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 ):
+def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 , toReflect = True):
 
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
@@ -330,7 +341,7 @@ def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 ):
             n_o, n_e = calc_n_s (wave, ss)
         else:
             n_o, n_e = calc_n (wave)
-        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave))
+        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave, toReflect = toReflect))
     r = res[0]
     g = res[1]
     b = res[2]
@@ -338,7 +349,7 @@ def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 ):
     return np.asarray([r.T,g.T,b.T]).T
 
 
-# In[11]:
+# In[ ]:
 
 
 def calc_vmax(image1, image2):
@@ -346,9 +357,6 @@ def calc_vmax(image1, image2):
     norms45= np.max (np.max(image2,axis =0),axis =0)
     norms = np.max (np.asarray([norms0, norms45]),axis = 0)
     return norms
-
-
-# In[12]:
 
 
 # In[ ]:
@@ -370,10 +378,12 @@ Note: if it takes np array, it returns np array of the same size
 """
 
 def RGB_to_BW (image,savename = None ):
-    im1 = np.copy(image) # the function tends to mutate the original data
+    im1 = np.copy(image)
+    # the function tends to mutate the original data
     #im1 = Image.open(r"C:\Users\System-Pc\Desktop\a.JPG")
     if (type (im1) == np.ndarray):
         if (np.median (im1)<1):
+            im1 = np.asarray(im1, dtype = np.float32)
             im1 *= 255.0
         im1 = Image.fromarray(np.asarray(im1, dtype = np.uint8))
 
@@ -390,6 +400,13 @@ def RGB_to_BW (image,savename = None ):
 # In[ ]:
 
 
+def gaussian (x, mu, sig):
+    return 1/ (sig*np.sqrt(2*np.pi) )*np.exp ( -0.5* ((x-mu)/sig)**2)
+
+
+# In[ ]:
+
+
 def g_p(x, mu, sig1, sig2):
     y = (x<mu)*np.exp(-(x-mu)**2/ (2*sig1**2)) + (x>=mu)*np.exp(-(x-mu)**2/ (2*sig2**2))
     return y
@@ -398,15 +415,41 @@ def g_p(x, mu, sig1, sig2):
 # In[ ]:
 
 
+def LED(x):
+    y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
+    return y
 
 
+# In[ ]:
 
-# In[14]:
+
+def light_xyz(wavelengths):
+    lx = []; ly=[];lz=[]
+    wv = []
+    dl = wavelengths[1]-wavelengths[0]
+    for i in range (0, len (wavelengths)-1):
+        start = wavelengths[i]
+        end = wavelengths[i+1]
+        wv.append (start + 0.5*dl)
+        x = np.linspace (start, end, 20)
+        light = LED(x)
+        res = cie_xyz(x)
+        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
+        lx.append(simpson (res[:,0],x)); ly.append(simpson (res[:,1],x)); lz.append (simpson (res[:,2],x))
+    lx = np.asarray(lx)
+    ly = np.asarray(ly)
+    lz = np.asarray(lz)
+    wv = np.asarray(wv)
+    res = np.vstack([lx,ly,lz]).T
+    return wv, res
+
+
+# In[ ]:
 
 
 def cie_xyz(wv):
     waves = np.copy(wv)
-    if (wv<1).any() :
+    if (np.mean(wv))<10:
         #print("rescale units um to nm")
         waves*=1000
     wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
@@ -416,7 +459,7 @@ def cie_xyz(wv):
     return res
 
 
-# In[15]:
+# In[ ]:
 
 
 """
@@ -439,22 +482,8 @@ def _convert(array, matrix, dtype, funcname):
 
 def xyz2rgb(xyz, dtype=None):
     '''
-    rgb = xyz2rgb(xyz, dtype={float})
-    Convert XYZ to sRGB coordinates
-    The output should be interpreted as sRGB. See Wikipedia for more details:
-    http://en.wikipedia.org/wiki/SRGB
-    Parameters
-    ----------
-    xyz : ndarray
-    dtype : dtype, optional
-        What dtype to return. Default will be floats
-    Returns
-    -------
-    rgb : ndarray
-    See Also
-    --------
-    rgb2xyz : function
-        The reverse function
+    scikit-image
+    http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_RGB.html
     '''
     transformation = np.array([
                 [ 3.2406, -1.5372, -0.4986],
@@ -462,19 +491,22 @@ def xyz2rgb(xyz, dtype=None):
                 [ 0.0557, -0.2040,  1.0570],
                 ])
 
-    rgb_linear = _convert(xyz, transformation, dtype, 'xyz2rgb')
+    res = _convert(xyz, transformation, dtype, 'xyz2rgb')
 
 
-    """
-    a = 0.055
-    srgb_high = (1 + a)*np.power(rgb_linear, 1./2.4)
-    srgb_high -= a
-    srgb_low = 12.92 * rgb_linear
-    srgb = np.choose(rgb_linear <= 0.0031308, [srgb_low, srgb_high])
-    srgb *= 255.
-    srgb = np.asarray(srgb,dtype = np.int32)
-    """
-    return rgb_linear
+    return res
+
+
+# In[ ]:
+
+
+def rgb2xyz(rgb, dtype=None):
+    transformation = np.array([[0.412453, 0.357580, 0.180423],
+                             [0.212671, 0.715160, 0.072169],
+                             [0.019334, 0.119193, 0.950227]])
+
+    res = _convert(rgb, transformation, dtype, 'rgb2xyz')
+    return res
 
 
 # In[ ]:
@@ -483,7 +515,7 @@ def xyz2rgb(xyz, dtype=None):
 """
 Convert director field for multi wavelengths
 """
-def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha_p =0 ):
+def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha_p =0, toReflect = True ):
 
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
@@ -504,7 +536,7 @@ def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha
             n_o, n_e = calc_n_s (wave, ss)
         else:
             n_o, n_e = calc_n (wave)
-        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave))
+        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave, toReflect = toReflect))
     res = np.asarray(res)
     res = np.transpose (res, [1,2,0])
     res2 = np.copy (res)
@@ -517,12 +549,34 @@ def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha
 # In[ ]:
 
 
-def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0):
+def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1.0):
+    print ("Exposure factor is:", exposureFactor)
+    #x0 = 0.964; y0 = 1.000; z0 = 0.825
+    x0, y0, z0 = rgb2xyz(np.asarray (whiteRGB).reshape(1,1,3)).reshape(3)
+    x0, y0, z0 = np.asarray([0.95046, 1.     , 1.08875])
+    s1 = x0/sum(ws[:,0])*exposureFactor; s2 = y0/sum(ws[:,1])*exposureFactor; s3 = y0/sum(ws[:,2])*exposureFactor
+    print ("White balance scaling factor: %.2f, %.2f, %.2f" % (s1, s2, s3))
+
+    return s1, s2, s3
+
+
+# In[ ]:
+
+
+def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, exposureFactor =1.0, toReflect = True):
     print ("fname", fname, "angle:", angle)
-    print("Number of wavelengths", len(wavelengths))
-    images_cont = n_to_color_manywaves (fname, wavelengths, alpha_p = angle)
-    ws = cie_xyz(wavelengths) # Calculates the relative weights that integrate into the 3 color channels
-    ws2 = ws/np.sum(ws)*3 # Normalize (divide by 3 since each sums to 1)
+    print("Number of wavelengths", len(wavelengths)-1)
+    midwaves, ws = light_xyz(wavelengths)
+    #wavelenths = np.copy(midwaves)
+    images_cont = n_to_color_manywaves (fname, wavelengths = midwaves, alpha_p = angle, toReflect = toReflect)
+    #ws = cie_xyz(wavelengths) # Calculates the relative weights that integrate into the 3 color channels
+
+    # White-balance
+    #ws2 = ws/np.sum(ws)*3 # Normalize (divide by 3 since each sums to 1)
+    s1, s2, s3 = white_balance (ws, exposureFactor = exposureFactor)
+    ws2 = np.copy(ws)
+    ws2[:,0]*= s1; ws2[:,1]*= s2; ws2[:,2]*= s3
+
     image_xyz = np.matmul(images_cont, ws2) # Cast from "continuous" spectrum to XYZ channels
 
     tmp = xyz2rgb(image_xyz)# Convert XYZ to RGB image See Wikipedia
@@ -531,11 +585,14 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0):
     # Although it's mostly normalized,xyz_to_rgb causes image to slightly go out of [0,1]
     # Normalize to avoid saturation
 
-    imax = np.max(np.max(tmp, axis =0),axis=0)
-    print ("Max of three color chanels", imax)
-    imax [np.where (imax<1)] =1
+    #imax = np.max(np.max(tmp, axis =0),axis=0)
+    #print ("Max of three color chanels", imax)
+    #imax [np.where (imax<1)] =1
     #imin = np.min(np.min(tmp, axis =0),axis=0)
-    res = (1/ (imax) )*(tmp) # Normalize
+    #res = (1/ (imax) )*(tmp) # Normalize
+    idx = np.where(tmp>1)
+    res = np.copy(tmp)
+    res[idx] = 1.0
     res[np.where(res<0)] = 0
 
     del tmp
@@ -547,16 +604,28 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0):
 
 
 
-# # Let's start to make POM images!
+# In[ ]:
+
+
+def Fresnel(theta_i, n1, n2 ):
+    costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
+    R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
+    R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
+    T_p = 1-R_p
+    T_s = 1-R_s
+    #T_s = T_s*(T_s>0)
+    return T_p, T_s
+
 
 # In[ ]:
 
 
-mode = num_to_mode(3)
-angle = 110
-#POM_of_Frame("test.txt", mode,angle)
-POM_of_Frame("testS.txt", mode,angle)
+def find_idx(arr, val):
+    idx = np.argmin (np.abs (arr -val))
+    return idx
 
+
+# # Let's start to make POM images!
 
 # In[ ]:
 
@@ -570,11 +639,18 @@ frame input types:
 2. string
     that corresponds to the file name of the interpolated director field
 """
-def POM_of_Frame (frame, mode ,angle , wl = None):
+def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
+
+    print ("="*100)
+    print ("Calculation started")
+    print ("="*100)
+    time1 = time.time()
     directory1 = "./Interpolated_Director_Field/"
     directory2 = "./Images/"
     angle = angle*np.pi/180.0
 
+    angle1 = np.copy(angle)
+    exposureFactor1 = np.copy(exposureFactor)
     # Load
     if (type(frame) == int):
         fname = directory1+ "Frame-"+str(frame)+"-interpolated-directors.txt"
@@ -589,28 +665,22 @@ def POM_of_Frame (frame, mode ,angle , wl = None):
 
     # Calculate images according to mode
     if (mode == "Single-wavelength"):
-        print ("Single wavelength calculations")
-        if wl is None:
-            wl = input ("Please input wavelengths in microns: (0.4~0.68 for visible light) \t")
-            wl = float(wl)
-        if ((wl > 0.35 and wl < 0.7) == False):
-            print ("Invalid wavelength")
-        else:
-            print (wl)
-        wave = wl
 
-        image = n_to_intensity(fname, wave, angle)
+        #wave = wl
+
+        #image = n_to_intensity(fname, wave, angle,toReflect = toReflect1)
+        image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
 
         ## Plot it
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(wave*1000))+".png"
+        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
         plot_image(image,vmax = 1.0, savename = picname)
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(wave*1000))+"Hist.png"
+        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
         plot_hist (image,savename = picname)
 
     if (mode == "Simp-color"):
         print ("Naive RGB image calculations")
         # Calculate RGB images
-        image_rgb = n_to_rgb_simp (fname, alpha_p = angle)
+        image_rgb = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
         # RGB channel plots
         picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-SimpRGB-channels.png"
         plot_image_rgb(image_rgb,vmax = 1.0,savename = picname)
@@ -628,12 +698,11 @@ def POM_of_Frame (frame, mode ,angle , wl = None):
         # Initialize continuous wavelengths
         if wl is None:
             print ("Default wavelengths")
-            wl = np.arange(.400, .681, .02)
+            wl = np.arange(.400, .681, .014)
 
-        angle1 = angle
 
          # Calculate images
-        image_rgbf0 = n_to_rgb_full (fname,wavelengths = wl, angle= angle1)
+        image_rgbf0 = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
 
         # Plot RGB images
         picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB.png"
@@ -655,6 +724,9 @@ def POM_of_Frame (frame, mode ,angle , wl = None):
         npyname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+".npy"
         np.save (npyname, image_rgbf0)
 
+        time2 = time.time()
+        t = time2-time1
+        print ("Elapsed time: %.1f s \n" % t)
     return
 
 
@@ -667,10 +739,13 @@ def num_to_mode (num):
         return "Full-color"
 
     else: return 0
-# In[72]:
-if __name__ == "__main__":
 
-    case = input ("Please select input mode. [1-3]\n 1. Single image.\n 2.Batch processing.\n\t Names shall be specified in ./tmp-filenames.txt. \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.\n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
+
+# In[ ]:
+
+
+def inputParams ():
+    case = input ("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
     case = int (case)
     if (isinstance (case, int) == False):
         sys.exit("Case is not integer")
@@ -683,17 +758,64 @@ if __name__ == "__main__":
     num = int(num)
     if ( isinstance (num, int) == False):
         sys.exit("num is not integer")
-    mode = num_to_mode(num)
+    if (num == 1):
+        wl = input ("Please input wavelengths in microns: (0.4~0.68 for visible light) \t")
+        wl = float(wl)
+        if ((np.min(wl) > 0.35 and np.max(wl) < 0.7) == False):
+            print ("Invalid wavelength")
+        else:
+            print (wl)
+            wl1 = np.asarray([wl-0.01,wl+0.01])
+    elif (num ==2 ):
+        wl1 = np.asarray ([0.4, 0.5, 0.55,0.7])
+    elif (num ==3 ):
+        lower = float (input ("Please enter lower wavelengths in microns. Suggested: 0.40. Input: \t"))
+        higher = float(input ("Please enter higher wavelengths in microns. Suggested: 0.68. Input: \t"))
+        interval = float(input ("Please enter intervals in microns. Suggested: 0.014. Input: \t"))
+        wl1=np.arange(lower, higher+0.01, interval)
+    else:
+        print ("Wrong case")
+        return
+    exposureFactor1 = input ("Please enter exposureFactor. Suggested: 1.5. Input: \t")
+    exposureFactor1 = float(exposureFactor1)
+    return case, num, angle,wl1, exposureFactor1
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+
+    print ("The script will try to load parameters from params.py.\n     If it doesn't exist, user will be prompted to enter parameters manually.\n ")
+    time.sleep(1)
+    # One color: np.asarray([0.641, 0.642])
+    # Simple: np.asarray ([0.4, 0.5, 0.55,0.7])
+    # Full spectrum: np.arange (0.4, 0.68, 0.014)
+    getinputParams = not (path.exists("./params.py"))
+    if (getinputParams):
+        print ("Params.py not found, input parameters manually")
+        case1, num1, angle1,wl1,exposureFactor1= inputParams()
+        mode1 = num_to_mode(num1)
+    else:
+        print ("Found file params.py")
+        import params
+        angle1=params.angle
+        case1= params.case
+        num1=params.num
+        mode1=num_to_mode(num1)
+        wl1=params.wl
+        exposureFactor1 = params.exposureFactor
+        print ("Mode:", mode1)
 
 
     # Generate images according to case
-    if (case == 1):
+    if (case1 == 1):
         # # Single image
 
         name = input ("File location for the director field. *.txt \n")
-        POM_of_Frame(name, mode,angle)
+        POM_of_Frame(name, mode = mode1,angle = angle1)
 
-    elif (case ==2):
+    elif (case1 ==2):
         # # Batch by filenames
         # Compute for all files listed in "./tmp-filenames.txt" (the exact director files need to to stored in "Interpolated_Director_Fields" folder)
 
@@ -701,13 +823,11 @@ if __name__ == "__main__":
 
         with open("./tmp-filenames.txt") as fp:
             for name in fp:
-                if (num == 1):
-                    POM_of_Frame(name.strip('\n'), mode,angle)
-                else:
-                    POM_of_Frame(name.strip('\n'), mode, angle,wl = np.arange(.400, .681, .014))
+                print("num:", num1)
+                POM_of_Frame(name.strip('\n'), mode = mode1, angle = angle1, exposureFactor = exposureFactor1, wl = wl1)
 
 
-    elif (case ==3):
+    elif (case1 ==3):
         # # Batch by frames
         # The frames are listed in "tmp-frames.txt"
 
@@ -715,6 +835,7 @@ if __name__ == "__main__":
 
         for frame in frames:
             #POM_of_Frame(frame, mode, angle)
-            POM_of_Frame(frame, mode, angle,wl = np.arange(.400, .681, .014))
+            POM_of_Frame(frame, mode= mode1, angle= angle1, exposureFactor = exposureFactor1, wl = wl1)
     else:
         print ("Error, wrong case.")
+
