@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib
 import numpy.linalg as la
+import re
 
 cmap = plt.get_cmap('jet')
 plt.style.use('./large_plot.mplstyle')
@@ -44,6 +45,7 @@ def radial (r,  dx = 0.1):
     centroid = np.asarray([0,0,0])
     # Pad by 10%, round nx, ny, nz to be multiples of 10
     l_box = L *1.1
+    l_box[2] = L[2]*1.01
     nl = np.ceil(l_box/dx/10)*10
     nl = np.asarray (nl, dtype= np.int32)
     l_box = nl*dx
@@ -123,15 +125,35 @@ def save_txt(rr,nn, consts, fname):
     np.savetxt(fname, X, fmt='%.4f', delimiter= '\t',header=top)
     return
 
+# In[8]:
 
+# For filenames, replace dot by p
+def replace_dot (num):
+    pattern = '\.'; repl = 'p'
+    string = '%.2f'%num
+    res = re.sub(pattern, repl, string, count=0, flags=0)
+    return res
 # # Run
 
-# In[8]:
+# In[9]:
 if __name__ == "__main__":
 
-    rr, nn, consts = radial (2.5, dx = 0.10)
+    """
+    rr, nn, consts = radial (10, dx = 0.1)
     l_box, nx,ny,nz,dx = consts
     plot_mid(rr,nn,l_box,toplot = False)
-    fname = "Interpolated_Director_Field/2p5um-Radial-0.txt"
+    fname = "Interpolated_Director_Field/10um-Radial-dx0p1.txt"
     save_txt(rr,nn, consts, fname)
-
+    """
+    directory = "Interpolated_Director_Field/"
+    Rlist = np.asarray([10.5])
+    dxlist = np.asarray([0.2])
+    for R in Rlist:
+        for dx in dxlist:
+            rr, nn, consts = radial (R, dx = dx)
+            l_box, nx,ny,nz,dx = consts
+            #plot_mid(rr,nn,l_box,toplot = False)
+            fname = replace_dot(R) +"um-Radial-"+replace_dot(dx) +".txt"
+            print (fname)
+            print (directory +fname)
+            save_txt(rr,nn, consts, directory+fname)
