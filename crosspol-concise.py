@@ -8,6 +8,7 @@
 # coding: utf-8
 
 import sys
+import importlib
 from os import path
 import time
 import numpy as np
@@ -77,7 +78,7 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
     for ix in range(Nx):
 
         if ((ix+1)%(int (Nx/10)) ==0):
-                    print ("%d %%" %((ix+1) // (Nx/10)*10), end = '\t')
+                    print ("%d %%" %((ix+1) // (Nx/10)*10), end = '\t', flush = True)
         for iy in range(Ny):
 
             # Initialize
@@ -88,7 +89,7 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
             iiz2 = -1
             for iz in range(Nz):
             #for iz in range(int (Nz*(0.5-0.05)),int (Nz*(0.5+0.05))):
-                iiz = iz + iy*Nx + ix*Ny*Nz # the id of the cell
+                iiz = iz + iy*Nz + ix*Ny*Nz # the id of the cell
 
                 if ( idx[iiz] ): # if the director is non-zero
 
@@ -194,6 +195,7 @@ def calc_n_s(lamb,s):
 
 def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
 
+    wavelength = np.mean(wavelength)
     #Load data
     X = np.loadtxt(fname,dtype = np.float32);
 
@@ -219,10 +221,13 @@ def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
 
 def plot_image (intensity, vmax = None,savename = None):
     fig, ax = plt.subplots()
-    image = intensity
+    if (len(intensity.shape) == 3):
+        image = np.transpose(intensity, [1,0,2])
+    else:
+        image = np.transpose(intensity)
     if (vmax == None):
         vmax = np.max(image)
-    im = ax.imshow(image, cmap=plt.get_cmap('bone'),interpolation='bicubic',vmax = vmax)
+    im = ax.imshow(image, cmap=plt.get_cmap('bone'),interpolation='bicubic',origin = 'lower', vmax = vmax)
     #ax.set_title ("0$^o$")
     ax.set_ylim(0,image.shape[0]-1)
     ax.set_xlim(0,image.shape[1]-1)
@@ -252,7 +257,8 @@ def plot_image_rgb (image_rgb, vmax = None,savename = None):
     for i in range (3):
         ax = axes[i]
         image = image_rgb[:,:,i]
-        im = ax.imshow(image, cmap=plt.get_cmap(color_maps[i]),interpolation='bicubic',vmin = 0,vmax = vmax)
+        image = np.transpose(image)
+        im = ax.imshow(image, cmap=plt.get_cmap(color_maps[i]),interpolation='bicubic',origin = 'lower',vmin = 0,vmax = vmax)
         #ax.set_title ("0$^o$")
         ax.set_ylim(0,image.shape[0]-1) # Seems that -1 is necessary?
         ax.set_xlim(0,image.shape[1]-1)
@@ -667,14 +673,13 @@ def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1
     if (mode == "Single-wavelength"):
 
         #wave = wl
-
-        #image = n_to_intensity(fname, wave, angle,toReflect = toReflect1)
-        image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
+        image = n_to_intensity(fname, wavelength = wl, alpha_p = angle1, toReflect = toReflect1)
+        #image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
 
         ## Plot it
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
         plot_image(image,vmax = 1.0, savename = picname)
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
         plot_hist (image,savename = picname)
 
     if (mode == "Simp-color"):
@@ -682,13 +687,13 @@ def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1
         # Calculate RGB images
         image_rgb = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
         # RGB channel plots
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-SimpRGB-channels.png"
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-channels.png"
         plot_image_rgb(image_rgb,vmax = 1.0,savename = picname)
         # RGB histograms
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-SimpRGB-hist.png"
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-hist.png"
         plot_hist_rgb (image_rgb, savename=picname)
         # RGB images
-        picname = info+"-angle-"+str(int(180*angle/np.pi)) +"-SimpRGB.png"
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB.png"
         plot_image(image_rgb,vmax = 1.0,savename = picname)
 
     if (mode == "Full-color"):
@@ -754,21 +759,21 @@ def inputParams ():
     angle = float(angle)
     if ( (angle <0) or (angle>180) ):
         sys.exit("Angle out of range is not integer")
-    num = input ("Select color mode [1-3]: 1. Single wavelength 2. Simplified color 3. Full color\n")
-    num = int(num)
-    if ( isinstance (num, int) == False):
-        sys.exit("num is not integer")
-    if (num == 1):
+    colorMode = input ("Select color mode [1-3]: 1. Single wavelength 2. Simplified color 3. Full color\n")
+    colorMode = int(colorMode)
+    if ( isinstance (colorMode, int) == False):
+        sys.exit("colorMode is not integer")
+    if (colorMode == 1):
         wl = input ("Please input wavelengths in microns: (0.4~0.68 for visible light) \t")
         wl = float(wl)
         if ((np.min(wl) > 0.35 and np.max(wl) < 0.7) == False):
             print ("Invalid wavelength")
         else:
             print (wl)
-            wl1 = np.asarray([wl-0.01,wl+0.01])
-    elif (num ==2 ):
+            wl1 = np.asarray([wl])
+    elif (colorMode ==2 ):
         wl1 = np.asarray ([0.4, 0.5, 0.55,0.7])
-    elif (num ==3 ):
+    elif (colorMode ==3 ):
         lower = float (input ("Please enter lower wavelengths in microns. Suggested: 0.40. Input: \t"))
         higher = float(input ("Please enter higher wavelengths in microns. Suggested: 0.68. Input: \t"))
         interval = float(input ("Please enter intervals in microns. Suggested: 0.014. Input: \t"))
@@ -778,7 +783,13 @@ def inputParams ():
         return
     exposureFactor1 = input ("Please enter exposureFactor. Suggested: 1.5. Input: \t")
     exposureFactor1 = float(exposureFactor1)
-    return case, num, angle,wl1, exposureFactor1
+    return case, colorMode, angle, wl1, exposureFactor1
+
+
+# In[ ]:
+
+
+print(("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n "))
 
 
 # In[ ]:
@@ -794,18 +805,20 @@ if __name__ == "__main__":
     getinputParams = not (path.exists("./params.py"))
     if (getinputParams):
         print ("Params.py not found, input parameters manually")
-        case1, num1, angle1,wl1,exposureFactor1= inputParams()
-        mode1 = num_to_mode(num1)
+        case1, colorMode1, angle1,wl1,exposureFactor1= inputParams()
+        mode1 = num_to_mode(colorMode1)
     else:
         print ("Found file params.py")
         import params
+        importlib.reload(params) # Avoid using cached copies
         angle1=params.angle
         case1= params.case
-        num1=params.num
-        mode1=num_to_mode(num1)
-        wl1=params.wl
+        colorMode1=params.colorMode
+        wl1=np.asarray(params.wl)
         exposureFactor1 = params.exposureFactor
+        mode1=num_to_mode(colorMode1)
         print ("Mode:", mode1)
+
 
 
     # Generate images according to case
@@ -823,7 +836,6 @@ if __name__ == "__main__":
 
         with open("./tmp-filenames.txt") as fp:
             for name in fp:
-                print("num:", num1)
                 POM_of_Frame(name.strip('\n'), mode = mode1, angle = angle1, exposureFactor = exposureFactor1, wl = wl1)
 
 
@@ -838,4 +850,3 @@ if __name__ == "__main__":
             POM_of_Frame(frame, mode= mode1, angle= angle1, exposureFactor = exposureFactor1, wl = wl1)
     else:
         print ("Error, wrong case.")
-
