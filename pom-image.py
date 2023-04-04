@@ -182,7 +182,7 @@ def calc_n_s(lamb,s):
     n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
     n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
 
-    S0 = 0.76
+    S0 = 0.68
     delta_n = (n_e - n_o)/S0
     abt = (n_e + 2*n_o)/3.0
     n_e = abt + 2/3*s*delta_n
@@ -732,6 +732,7 @@ def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1
         time2 = time.time()
         t = time2-time1
         print ("Elapsed time: %.1f s \n" % t)
+    plt.close ("all")
     return
 
 
