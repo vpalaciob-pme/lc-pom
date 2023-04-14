@@ -1,49 +1,27 @@
 
-# coding: utf-8
-
-# In[ ]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[33]:
-
-
 import numpy as np
 import matplotlib
-from os import path
 import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 from matplotlib import cm
 from scipy.spatial.transform import Rotation as R
-
-# Optional style sheet for beautiful plots
-#plt.style.use('C:/Users/chenc/Documents/Python_plot_formats/large_plot.mplstyle')
-
 import numpy.linalg as la
+
+from os import path
+
+# Local imports
+from ..utils import *
 
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
 
-
-# In[2]:
-
-
 cmap = plt.get_cmap('jet')
 plt.style.use('./large_plot.mplstyle')
-
-
-# In[ ]:
-
 
 plt.rcParams["figure.dpi"] =50
 fig, ax = plt.subplots()
 for x in np.linspace (0,1,10):
     ax.plot (x, x,color = cmap (x),marker = 'o')
-
-
-# In[ ]:
 
 
 def calc_error_deg (n1, n2):
@@ -61,18 +39,6 @@ def calc_error_deg (n1, n2):
     return res
 
 
-# In[ ]:
-
-
-def normalize(nn):
-    for i in range (len (nn)):
-        if (np.linalg.norm (nn[i]) >1.0E-5):
-            nn[i] = nn[i]/np.linalg.norm (nn[i])
-    return nn
-
-
-# In[ ]:
-
 
 """
 Method should be quintic, cubit or thin_plate_spline
@@ -85,8 +51,6 @@ def interpolate (rr, rr0, nn0, method = 'thin_plate'):
     return nn
 
 
-# In[ ]:
-
 
 def interpolate_s (rr, rr0,  ss0 ,method = 'thin_plate'):
 
@@ -95,7 +59,6 @@ def interpolate_s (rr, rr0,  ss0 ,method = 'thin_plate'):
     return ss
 
 
-# In[ ]:
 
 
 def ellip1 (r, L,center):
@@ -103,88 +66,6 @@ def ellip1 (r, L,center):
     y = (r[1]-center[1])*2/L[1]
     z = (r[2]-center[2])*2/L[2]
     return x**2+y**2 +z**2-1
-
-
-# # A general algorithm that defines a minimal enclosing surface is below. Gives very similar results to np.max. Practically useless.
-
-# In[ ]:
-
-
-
-"""
-https://stackoverflow.com/questions/14016898/port-matlab-bounding-ellipsoid-code-to-python
-"""
-
-"""
-pi = np.pi
-sin = np.sin
-cos = np.cos
-
-def mvee(points, tol = 1.0E-3):
-
-    #Finds the ellipse equation in "center form"
-    #(x-c).T * A * (x-c) = 1
-    N, d = points.shape
-    Q = np.column_stack((points, np.ones(N))).T
-    err = tol+1.0
-    u = np.ones(N)/N
-    while err > tol:
-        # assert u.sum() == 1 # invariant
-        X = np.dot(np.dot(Q, np.diag(u)), Q.T)
-        M = np.diag(np.dot(np.dot(Q.T, la.inv(X)), Q))
-        jdx = np.argmax(M)
-        step_size = (M[jdx]-d-1.0)/((d+1)*(M[jdx]-1.0))
-        new_u = (1-step_size)*u
-        new_u[jdx] += step_size
-        err = la.norm(new_u-u)
-        u = new_u
-    c = np.dot(u,points)
-    A = la.inv(np.dot(np.dot(points.T, np.diag(u)), points)
-               - np.multiply.outer(c,c))/d
-    return A, c
-
-""";
-
-
-# In[ ]:
-
-
-"""
-def find_surface (coords):
-    L0 = np.max(coords, axis=0)-np.min(coords, axis=0)
-    centroid0 = np.mean(coords, axis=0)
-    idx = np.where (ellip1 (coords.T, L0, centroid0)>-0.08)
-    rr= coords[idx]
-    surface = np.copy(rr)
-    return L0, centroid0, surface
-
-
-
-def find_L(coords):
-    L0, centroid0, surface = find_surface (coords)
-    points = surface
-
-
-    A, centroid = mvee(points, tol = 1.0E-3)
-    U, D, V = la.svd(A)
-    rx, ry, rz = 1./np.sqrt(D)
-
-    print ("Naive estimation of the long and short axis of the ellipsoid from maximum and minimum of coords.\nDiameters:",L0,"Centroid",centroid0)
-    order = np.argsort (L0)
-    # Order in the right way
-    L1 = np.asarray([2*rx, 2*ry, 2*rz])
-    L=np.zeros(3)
-    L[order] = L1[:]*0.99
-
-    print("Fitted ellipsoid:")
-    print("Diameters:",L,"Centroid",centroid)
-    print ("Percentage difference:", (L-L0)/L0*100, "%")
-    return L, centroid
-""";
-
-
-# In[ ]:
-
 
 
 def make_grid(L,dx):
@@ -215,8 +96,6 @@ def make_grid(L,dx):
     consts0 =[nx,ny,nz,dx,dx,dx]
     return consts0, l_box, rr, nn
 
-
-# In[ ]:
 
 
 def plot_orig_3views(coords_orig, directors, ss0, L, info,directory2):
@@ -287,8 +166,6 @@ def plot_orig_3views(coords_orig, directors, ss0, L, info,directory2):
     plt.savefig(fname)
 
 
-# In[ ]:
-
 
 """https://stackoverflow.com/questions/37154071/python-quiver-plot-without-head"""
 def plot_orig (coords_orig, directors, ss0, L, info,directory2):
@@ -331,20 +208,9 @@ def plot_orig (coords_orig, directors, ss0, L, info,directory2):
     if (ss0.any()!= None):
         plot_orig_3views(coords_orig, directors, ss0, L, info,directory2)
 
-return
+    return
 
 
-# In[ ]:
-
-
-def Rotate (coords, directors, angles):
-    r = R.from_euler('xyz', angles, degrees=True).as_matrix()
-    coords = np.matmul (r, coords.T).T
-    directors = np.matmul(r, directors.T).T
-    return coords, directors
-
-
-# In[ ]:
 
 
 def plot_final (rr, nn, ss, coords, directors, L, info, directory2):
@@ -413,8 +279,6 @@ def plot_final (rr, nn, ss, coords, directors, L, info, directory2):
     return
 
 
-# In[ ]:
-
 
 def write_orig(rr, nn, ss,info,euler_angles, directory1):
     ss = ss.reshape ([len(ss),1])
@@ -428,7 +292,6 @@ def write_orig(rr, nn, ss,info,euler_angles, directory1):
     return
 
 
-# In[ ]:
 
 
 def write_txt(rr, nn, consts0, l_box,info,directory2):
@@ -448,9 +311,6 @@ def write_txt(rr, nn, consts0, l_box,info,directory2):
     return
 
 
-# In[ ]:
-
-
 def write_txt_s(rr, nn, ss,consts0, l_box,info,directory2):
     [nx,ny,nz,dx,dy,dz] = consts0
     X0 = np.hstack([rr,nn,ss])
@@ -466,9 +326,6 @@ def write_txt_s(rr, nn, ss,consts0, l_box,info,directory2):
     fname = directory2 + info +"-interpolated-directors.txt"
     np.savetxt(fname, X, fmt='%.4f', delimiter= '\t',header=top)
     return
-
-
-# In[ ]:
 
 
 
@@ -506,11 +363,6 @@ def interp_frame (coords, directors, ss0, L , delta, info, directory2 = "./Inter
 
     return
 
-
-# In[31]:
-
-
-# In[ ]:
 
 
 def read_rotate (fname, scaling = 1.0, euler_angles = np.asarray([0,0,0])):
@@ -560,9 +412,6 @@ def read_rotate (fname, scaling = 1.0, euler_angles = np.asarray([0,0,0])):
 
 
 
-# In[ ]:
-
-
 
 
 def plot_from_existed(fname_orig, fname_interp, info,scaling = 1.0, euler_angles =  np.asarray ([0,0,0])):
@@ -591,7 +440,6 @@ def plot_from_existed(fname_orig, fname_interp, info,scaling = 1.0, euler_angles
 
 
 
-# In[ ]:
 
 
 def batch(dx=0.2, loadDirectory = "./Original_Director_Field/", saveDirectory = "./Interpolated_Director_Field/"):
@@ -611,14 +459,11 @@ def batch(dx=0.2, loadDirectory = "./Original_Director_Field/", saveDirectory = 
         return
 
 
-# In[ ]:
-
 
 if __name__ == "__main__":
     batch(dx =0.2)
 
 
-# In[ ]:
 
 
 """
