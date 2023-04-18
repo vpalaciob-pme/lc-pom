@@ -1,5 +1,5 @@
 """
-lcpom : a package to simulate polarized optical microscopy images for liquid crystals
+lcpom : a Python package to simulate polarized optical microscopy images for liquid crystals
 Copyright (C) 2023, de Pablo Lab, Prtizker School of Molecular Engineering, University of Chicago.
 
 """
@@ -12,7 +12,7 @@ __copyright__ = "Copyright (C) 2023, de Pablo Lab, Prtizker School of Molecular 
 __version__ = '0.0.1'
 
 
-from lcpom.io import *
+from lcpom.utils import *
 
 from lcpom.mesh import *
 

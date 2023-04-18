@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lcpom"
+dynamic = ["version"]
+description = "Simulation of Polarized Optical Microscopy images of liquid crystalline systems."
+readme = "README.md"
+authors = [
+    {name = "Chuqiao Chen (Elise)", email = "elisechen@uchicago.edu"}, 
+    {name = "Viviana Palacio-Betancur", email="vpalaciob@uchicago.edu"},
+    {name = "Pablo Zubieta Rico", email="pzubietab@uchicago.edu"},
+    {name = "Prof. Juan de Pablo", email="depablo@uchicago.edu"}
+
+]
+maintainers = [
+    {name = "Chuqiao Chen (Elise)", email = "elisechen@uchicago.edu"}, 
+    {name = "Viviana Palacio-Betancur", email="vpalaciob@uchicago.edu"},
+    {name = "Pablo Zubieta Rico", email="pzubietab@uchicago.edu"}
+]
+license = "MIT"
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Education',
+    'Topic :: Scientific/Engineering',
+    'Topic :: Scientific/Engineering :: Physics',
+    'Topic :: Scientific/Engineering :: Visualization',
+    'Topic :: Education',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'License :: OSI Approved :: MIT License',
+    'Natural Language :: English',
+    'Operating System :: OS Independent'
+]
+requires-python = ">=3.8"
+dependencies = [
+    'numpy',
+    'matplotlib',
+    'scikit-learn',
+    'scipy>=1.9.3'
+]
+
+[project.optional-dependencies]
+dev = [
+    'pytest',
+    'pytest-cov'
+]
+docs = [
+    'ipykernel',
+    'nbsphinx',
+    'sphinx_autodoc_typehints',
+    'h5py',
+    'pydata_sphinx_theme'
+]
+
+[project.urls]
+homepage = 'https://github.com/depablogroup/lc-pom'
+##documentation = ' '
+
+[tool.hatch.build]
+include = ['lcpom']
+
+[tool.hatch.version]
+path = "lcpom/__init__.py"
+
+[tool.coverage.run]
+source = ['lcpom']
+
+[tool.yapf]
+based_on_style = 'pep8'
+column_limit = 120

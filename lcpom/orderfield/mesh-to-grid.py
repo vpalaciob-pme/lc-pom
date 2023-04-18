@@ -15,13 +15,39 @@ from ..utils import *
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
 
-cmap = plt.get_cmap('jet')
-plt.style.use('./large_plot.mplstyle')
+class meshpom:
+    
+    def make_grid(L,dx):
+    # Box separation grid size: 0.1um
+    # Padding: 10%
 
-plt.rcParams["figure.dpi"] =50
-fig, ax = plt.subplots()
-for x in np.linspace (0,1,10):
-    ax.plot (x, x,color = cmap (x),marker = 'o')
+    l_box = L *1.1; l_box[2] = L[2]*1.01
+    nl = np.ceil(l_box/dx/5)*5
+    nl = np.asarray (nl, dtype= np.int32)
+    l_box = nl*dx
+
+    nx, ny, nz = nl
+    print ("nx, ny, nz", nx, ny, nz)
+    print ("total data points: ", nx*ny*nz)
+    if (nx*ny*nz)>1.0E8:
+        print ("Grid too fine")
+        return
+    rr = np.zeros ((nx*ny*nz, 3))
+    nn = np.zeros ((nx*ny*nz, 3))
+
+    x = np.linspace(-l_box[0]/2, l_box[0]/2, nx)
+    y = np.linspace(-l_box[1]/2, l_box[1]/2, ny)
+    z = np.linspace(-l_box[2]/2, l_box[2]/2, nz)
+    xv, yv,zv = np.meshgrid(x, y, z,indexing='ij')
+
+    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
+    rr = np.asarray(rr, dtype = np.float32)
+    consts0 =[nx,ny,nz,dx,dx,dx]
+    return consts0, l_box, rr, nn
+
+
+
+
 
 
 def calc_error_deg (n1, n2):
@@ -68,33 +94,6 @@ def ellip1 (r, L,center):
     return x**2+y**2 +z**2-1
 
 
-def make_grid(L,dx):
-    # Box separation grid size: 0.1um
-    # Padding: 10%
-
-    l_box = L *1.1; l_box[2] = L[2]*1.01
-    nl = np.ceil(l_box/dx/5)*5
-    nl = np.asarray (nl, dtype= np.int32)
-    l_box = nl*dx
-
-    nx, ny, nz = nl
-    print ("nx, ny, nz", nx, ny, nz)
-    print ("total data points: ", nx*ny*nz)
-    if (nx*ny*nz)>1.0E8:
-        print ("Grid too fine")
-        return
-    rr = np.zeros ((nx*ny*nz, 3))
-    nn = np.zeros ((nx*ny*nz, 3))
-
-    x = np.linspace(-l_box[0]/2, l_box[0]/2, nx)
-    y = np.linspace(-l_box[1]/2, l_box[1]/2, ny)
-    z = np.linspace(-l_box[2]/2, l_box[2]/2, nz)
-    xv, yv,zv = np.meshgrid(x, y, z,indexing='ij')
-
-    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
-    rr = np.asarray(rr, dtype = np.float32)
-    consts0 =[nx,ny,nz,dx,dx,dx]
-    return consts0, l_box, rr, nn
 
 
 

@@ -1,12 +1,3 @@
-
-# coding: utf-8
-
-# In[ ]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
 import sys
 import importlib
 from os import path
@@ -39,7 +30,6 @@ plt.style.use('./large_plot.mplstyle')
 # Simulating optical polarizing microscopy textures using Jones calculus: a review exemplified with nematic liquid crystal tori
 #
 
-# In[ ]:
 
 
 
@@ -155,8 +145,6 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
 #  WU et al. Optical Engineering 1993 32(8) 1775
 #  Li et al. Journal of Applied Physics 96, 19 (2004)
 
-# In[ ]:
-
 
 def calc_n(lamb):
 
@@ -168,10 +156,6 @@ def calc_n(lamb):
     n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
 
     return n_o, n_e
-
-
-# In[ ]:
-
 
 def calc_n_s(lamb,s):
 
@@ -188,9 +172,6 @@ def calc_n_s(lamb,s):
     n_e = abt + 2/3*s*delta_n
     n_o = abt - 1/3*s*delta_n
     return n_o, n_e
-
-
-# In[ ]:
 
 
 def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
@@ -216,9 +197,6 @@ def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
     return tmp
 
 
-# In[ ]:
-
-
 def plot_image (intensity, vmax = None,savename = None):
     fig, ax = plt.subplots()
     if (len(intensity.shape) == 3):
@@ -241,8 +219,6 @@ def plot_image (intensity, vmax = None,savename = None):
         plt.savefig(savename,pad_inches=0)
     return
 
-
-# In[ ]:
 
 
 def plot_image_rgb (image_rgb, vmax = None,savename = None):
@@ -276,9 +252,6 @@ def plot_image_rgb (image_rgb, vmax = None,savename = None):
     return
 
 
-# In[ ]:
-
-
 def plot_hist (ys, savename=None):
     fig, ax = plt.subplots()
     ys = np.asarray(ys)
@@ -295,9 +268,6 @@ def plot_hist (ys, savename=None):
     if (savename != None):
         plt.savefig(savename)
     return
-
-
-# In[ ]:
 
 
 def plot_hist_rgb (ys, savename=None):
@@ -319,9 +289,6 @@ def plot_hist_rgb (ys, savename=None):
     if (savename != None):
         plt.savefig(savename)
     return
-
-
-# In[ ]:
 
 
 def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 , toReflect = True):
@@ -355,18 +322,11 @@ def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 , toReflect
     return np.asarray([r.T,g.T,b.T]).T
 
 
-# In[ ]:
-
-
 def calc_vmax(image1, image2):
     norms0= np.max (np.max(image1,axis =0),axis =0)
     norms45= np.max (np.max(image2,axis =0),axis =0)
     norms = np.max (np.asarray([norms0, norms45]),axis = 0)
     return norms
-
-
-# In[ ]:
-
 
 
 """
@@ -403,14 +363,10 @@ def RGB_to_BW (image,savename = None ):
     return np.asarray(im2/255.0, dtype = np.float32)
 
 
-# In[ ]:
-
 
 def gaussian (x, mu, sig):
     return 1/ (sig*np.sqrt(2*np.pi) )*np.exp ( -0.5* ((x-mu)/sig)**2)
 
-
-# In[ ]:
 
 
 def g_p(x, mu, sig1, sig2):
@@ -418,15 +374,9 @@ def g_p(x, mu, sig1, sig2):
     return y
 
 
-# In[ ]:
-
-
 def LED(x):
     y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
     return y
-
-
-# In[ ]:
 
 
 def light_xyz(wavelengths):
@@ -450,9 +400,6 @@ def light_xyz(wavelengths):
     return wv, res
 
 
-# In[ ]:
-
-
 def cie_xyz(wv):
     waves = np.copy(wv)
     if (np.mean(wv))<10:
@@ -464,8 +411,6 @@ def cie_xyz(wv):
     res = np.asarray([wx, wy, wz]).T
     return res
 
-
-# In[ ]:
 
 
 """
@@ -481,9 +426,6 @@ def _convert(array, matrix, dtype, funcname):
     if dtype is not None:
         array = array.astype(dtype, copy=True)
     return array
-
-
-# In[ ]:
 
 
 def xyz2rgb(xyz, dtype=None):
@@ -503,8 +445,6 @@ def xyz2rgb(xyz, dtype=None):
     return res
 
 
-# In[ ]:
-
 
 def rgb2xyz(rgb, dtype=None):
     transformation = np.array([[0.412453, 0.357580, 0.180423],
@@ -514,8 +454,6 @@ def rgb2xyz(rgb, dtype=None):
     res = _convert(rgb, transformation, dtype, 'rgb2xyz')
     return res
 
-
-# In[ ]:
 
 
 """
@@ -552,8 +490,6 @@ def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha
     return res2 # pixels_y *pixels_x * N_waves
 
 
-# In[ ]:
-
 
 def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1.0):
     print ("Exposure factor is:", exposureFactor)
@@ -564,9 +500,6 @@ def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1
     print ("White balance scaling factor: %.2f, %.2f, %.2f" % (s1, s2, s3))
 
     return s1, s2, s3
-
-
-# In[ ]:
 
 
 def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, exposureFactor =1.0, toReflect = True):
@@ -609,10 +542,6 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, ex
     return res
 
 
-
-# In[ ]:
-
-
 def Fresnel(theta_i, n1, n2 ):
     costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
     R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
@@ -623,19 +552,12 @@ def Fresnel(theta_i, n1, n2 ):
     return T_p, T_s
 
 
-# In[ ]:
-
-
 def find_idx(arr, val):
     idx = np.argmin (np.abs (arr -val))
     return idx
 
 
 # # Let's start to make POM images!
-
-# In[ ]:
-
-
 
 
 """
@@ -747,9 +669,6 @@ def num_to_mode (num):
     else: return 0
 
 
-# In[ ]:
-
-
 def inputParams ():
     case = input ("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
     case = int (case)
@@ -787,13 +706,8 @@ def inputParams ():
     return case, colorMode, angle, wl1, exposureFactor1
 
 
-# In[ ]:
-
 
 print(("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n "))
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -819,7 +733,6 @@ if __name__ == "__main__":
         exposureFactor1 = params.exposureFactor
         mode1=num_to_mode(colorMode1)
         print ("Mode:", mode1)
-
 
 
     # Generate images according to case
