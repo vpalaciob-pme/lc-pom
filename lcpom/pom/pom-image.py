@@ -136,42 +136,6 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
     return Intensity
 
 
-#
-#   Refractive index
-#  The refractive indices depend on wavelengths (and temperature).
-#
-#  Reference:
-#
-#  WU et al. Optical Engineering 1993 32(8) 1775
-#  Li et al. Journal of Applied Physics 96, 19 (2004)
-
-
-def calc_n(lamb):
-
-    l1 = 0.210; l2 = 0.282;
-    n0e = 0.455; g1e = 2.325; g2e = 1.397
-    n0o = 0.414; g1o = 1.352; g2o = 0.470
-
-    n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
-    n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
-
-    return n_o, n_e
-
-def calc_n_s(lamb,s):
-
-    l1 = 0.210; l2 = 0.282;
-    n0e = 0.455; g1e = 2.325; g2e = 1.397
-    n0o = 0.414; g1o = 1.352; g2o = 0.470
-
-    n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
-    n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
-
-    S0 = 0.68
-    delta_n = (n_e - n_o)/S0
-    abt = (n_e + 2*n_o)/3.0
-    n_e = abt + 2/3*s*delta_n
-    n_o = abt - 1/3*s*delta_n
-    return n_o, n_e
 
 
 def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
@@ -195,30 +159,6 @@ def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
     # Calculate image
     tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength, toReflect = toReflect)
     return tmp
-
-
-def plot_image (intensity, vmax = None,savename = None):
-    fig, ax = plt.subplots()
-    if (len(intensity.shape) == 3):
-        image = np.transpose(intensity, [1,0,2])
-    else:
-        image = np.transpose(intensity)
-    if (vmax == None):
-        vmax = np.max(image)
-    im = ax.imshow(image, cmap=plt.get_cmap('bone'),interpolation='bicubic',origin = 'lower', vmax = vmax)
-    #ax.set_title ("0$^o$")
-    ax.set_ylim(0,image.shape[0]-1)
-    ax.set_xlim(0,image.shape[1]-1)
-    im.axes.get_xaxis().set_visible(False);
-    im.axes.get_yaxis().set_visible(False);
-    ax.axis("off")
-    plt.tight_layout(pad = 0)
-    dpi = matplotlib.rcParams['savefig.dpi']
-    fig.set_size_inches(5*image.shape[1]/dpi,5*image.shape[0]/dpi)
-    if (savename != None):
-        plt.savefig(savename,pad_inches=0)
-    return
-
 
 
 def plot_image_rgb (image_rgb, vmax = None,savename = None):
@@ -251,23 +191,6 @@ def plot_image_rgb (image_rgb, vmax = None,savename = None):
 
     return
 
-
-def plot_hist (ys, savename=None):
-    fig, ax = plt.subplots()
-    ys = np.asarray(ys)
-
-    upper = np.max(ys)
-    if (upper<1.0E-2):
-        upper = 1.0
-    image = ys
-    #for image in ys:
-    ax.hist(image.flatten(), bins = np.linspace (0,upper,51), density = True);
-    ax.set_yscale ("log")
-    ax.set_xlabel("Intensity")
-    plt.tight_layout()
-    if (savename != None):
-        plt.savefig(savename)
-    return
 
 
 def plot_hist_rgb (ys, savename=None):
@@ -657,18 +580,6 @@ def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1
     plt.close ("all")
     return
 
-
-def num_to_mode (num):
-    if (num == 1):
-        return "Single-wavelength"
-    if (num ==2):
-        return "Simp-color"
-    if (num == 3):
-        return "Full-color"
-
-    else: return 0
-
-
 def inputParams ():
     case = input ("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
     case = int (case)
@@ -704,8 +615,6 @@ def inputParams ():
     exposureFactor1 = input ("Please enter exposureFactor. Suggested: 1.5. Input: \t")
     exposureFactor1 = float(exposureFactor1)
     return case, colorMode, angle, wl1, exposureFactor1
-
-
 
 print(("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n "))
 

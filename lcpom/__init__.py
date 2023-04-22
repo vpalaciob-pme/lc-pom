@@ -14,11 +14,7 @@ __version__ = '0.0.1'
 
 from lcpom.utils import *
 
-from lcpom.mesh import *
-
 from lcpom.orderfield import *
-
-from lcpom.params import *
 
 from lcpom.pom import *
 
