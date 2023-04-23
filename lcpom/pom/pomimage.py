@@ -16,11 +16,6 @@ np.set_printoptions(suppress=True)
 
 plt.style.use('./large_plot.mplstyle')
 
-
-#from mpl_toolkits.mplot3d import Axes3D
-#cmap = plt.get_cmap('jet')
-
-
 #
 #  ### Reference:
 # Doane J. Appl. Phys. 69(9) 1991
@@ -29,8 +24,6 @@ plt.style.use('./large_plot.mplstyle')
 # Alberto J. Phys D: Appl. Phys.52 (2019) 213001
 # Simulating optical polarizing microscopy textures using Jones calculus: a review exemplified with nematic liquid crystal tori
 #
-
-
 
 
 def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
@@ -134,8 +127,6 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
     print("\n")
 
     return Intensity
-
-
 
 
 def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
@@ -286,99 +277,6 @@ def RGB_to_BW (image,savename = None ):
     return np.asarray(im2/255.0, dtype = np.float32)
 
 
-
-def gaussian (x, mu, sig):
-    return 1/ (sig*np.sqrt(2*np.pi) )*np.exp ( -0.5* ((x-mu)/sig)**2)
-
-
-
-def g_p(x, mu, sig1, sig2):
-    y = (x<mu)*np.exp(-(x-mu)**2/ (2*sig1**2)) + (x>=mu)*np.exp(-(x-mu)**2/ (2*sig2**2))
-    return y
-
-
-def LED(x):
-    y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
-    return y
-
-
-def light_xyz(wavelengths):
-    lx = []; ly=[];lz=[]
-    wv = []
-    dl = wavelengths[1]-wavelengths[0]
-    for i in range (0, len (wavelengths)-1):
-        start = wavelengths[i]
-        end = wavelengths[i+1]
-        wv.append (start + 0.5*dl)
-        x = np.linspace (start, end, 20)
-        light = LED(x)
-        res = cie_xyz(x)
-        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
-        lx.append(simpson (res[:,0],x)); ly.append(simpson (res[:,1],x)); lz.append (simpson (res[:,2],x))
-    lx = np.asarray(lx)
-    ly = np.asarray(ly)
-    lz = np.asarray(lz)
-    wv = np.asarray(wv)
-    res = np.vstack([lx,ly,lz]).T
-    return wv, res
-
-
-def cie_xyz(wv):
-    waves = np.copy(wv)
-    if (np.mean(wv))<10:
-        #print("rescale units um to nm")
-        waves*=1000
-    wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
-    wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
-    wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
-    res = np.asarray([wx, wy, wz]).T
-    return res
-
-
-
-"""
-These functions are copied from the mahotas package
-"""
-def _convert(array, matrix, dtype, funcname):
-    h,w,d = array.shape
-    array = array.transpose((2,0,1))
-    array = array.reshape((3,h*w))
-    array = np.dot(matrix, array)
-    array = array.reshape((3,h,w))
-    array = array.transpose((1,2,0))
-    if dtype is not None:
-        array = array.astype(dtype, copy=True)
-    return array
-
-
-def xyz2rgb(xyz, dtype=None):
-    '''
-    scikit-image
-    http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_RGB.html
-    '''
-    transformation = np.array([
-                [ 3.2406, -1.5372, -0.4986],
-                [-0.9689,  1.8758,  0.0415],
-                [ 0.0557, -0.2040,  1.0570],
-                ])
-
-    res = _convert(xyz, transformation, dtype, 'xyz2rgb')
-
-
-    return res
-
-
-
-def rgb2xyz(rgb, dtype=None):
-    transformation = np.array([[0.412453, 0.357580, 0.180423],
-                             [0.212671, 0.715160, 0.072169],
-                             [0.019334, 0.119193, 0.950227]])
-
-    res = _convert(rgb, transformation, dtype, 'rgb2xyz')
-    return res
-
-
-
 """
 Convert director field for multi wavelengths
 """
@@ -408,21 +306,8 @@ def n_to_color_manywaves(fname, wavelengths = np.arange(.400, .681, .02) , alpha
     res = np.transpose (res, [1,2,0])
     res2 = np.copy (res)
 
-
     #print ("Angle %d" % int(180*alpha_p/np.pi))
     return res2 # pixels_y *pixels_x * N_waves
-
-
-
-def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1.0):
-    print ("Exposure factor is:", exposureFactor)
-    #x0 = 0.964; y0 = 1.000; z0 = 0.825
-    x0, y0, z0 = rgb2xyz(np.asarray (whiteRGB).reshape(1,1,3)).reshape(3)
-    x0, y0, z0 = np.asarray([0.95046, 1.     , 1.08875])
-    s1 = x0/sum(ws[:,0])*exposureFactor; s2 = y0/sum(ws[:,1])*exposureFactor; s3 = y0/sum(ws[:,2])*exposureFactor
-    print ("White balance scaling factor: %.2f, %.2f, %.2f" % (s1, s2, s3))
-
-    return s1, s2, s3
 
 
 def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, exposureFactor =1.0, toReflect = True):
@@ -465,21 +350,6 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, ex
     return res
 
 
-def Fresnel(theta_i, n1, n2 ):
-    costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
-    R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
-    R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
-    T_p = 1-R_p
-    T_s = 1-R_s
-    #T_s = T_s*(T_s>0)
-    return T_p, T_s
-
-
-def find_idx(arr, val):
-    idx = np.argmin (np.abs (arr -val))
-    return idx
-
-
 # # Let's start to make POM images!
 
 
@@ -490,7 +360,7 @@ frame input types:
 2. string
     that corresponds to the file name of the interpolated director field
 """
-def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
+def POMFrame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
 
     print ("="*100)
     print ("Calculation started")
@@ -579,97 +449,3 @@ def POM_of_Frame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1
         print ("Elapsed time: %.1f s \n" % t)
     plt.close ("all")
     return
-
-def inputParams ():
-    case = input ("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n ")
-    case = int (case)
-    if (isinstance (case, int) == False):
-        sys.exit("Case is not integer")
-
-    angle = input ("Angle of polarizer in degrees [0 - 180]\n")
-    angle = float(angle)
-    if ( (angle <0) or (angle>180) ):
-        sys.exit("Angle out of range is not integer")
-    colorMode = input ("Select color mode [1-3]: 1. Single wavelength 2. Simplified color 3. Full color\n")
-    colorMode = int(colorMode)
-    if ( isinstance (colorMode, int) == False):
-        sys.exit("colorMode is not integer")
-    if (colorMode == 1):
-        wl = input ("Please input wavelengths in microns: (0.4~0.68 for visible light) \t")
-        wl = float(wl)
-        if ((np.min(wl) > 0.35 and np.max(wl) < 0.7) == False):
-            print ("Invalid wavelength")
-        else:
-            print (wl)
-            wl1 = np.asarray([wl])
-    elif (colorMode ==2 ):
-        wl1 = np.asarray ([0.4, 0.5, 0.55,0.7])
-    elif (colorMode ==3 ):
-        lower = float (input ("Please enter lower wavelengths in microns. Suggested: 0.40. Input: \t"))
-        higher = float(input ("Please enter higher wavelengths in microns. Suggested: 0.68. Input: \t"))
-        interval = float(input ("Please enter intervals in microns. Suggested: 0.014. Input: \t"))
-        wl1=np.arange(lower, higher+0.01, interval)
-    else:
-        print ("Wrong case")
-        return
-    exposureFactor1 = input ("Please enter exposureFactor. Suggested: 1.5. Input: \t")
-    exposureFactor1 = float(exposureFactor1)
-    return case, colorMode, angle, wl1, exposureFactor1
-
-print(("Please select input mode. [1-3]    \n 1. Single image.    \n 2.Batch processing.    \n\t Names shall be specified in ./tmp-filenames.txt.     \n\t The exact director files need to to stored in 'Interpolated_Director_Fields' folder.    \n 3. Batch processing specified by frames. The frames are listed in 'tmp-frames.txt'. \n "))
-
-
-if __name__ == "__main__":
-
-    print ("The script will try to load parameters from params.py.\n     If it doesn't exist, user will be prompted to enter parameters manually.\n ")
-    time.sleep(1)
-    # One color: np.asarray([0.641, 0.642])
-    # Simple: np.asarray ([0.4, 0.5, 0.55,0.7])
-    # Full spectrum: np.arange (0.4, 0.68, 0.014)
-    getinputParams = not (path.exists("./params.py"))
-    if (getinputParams):
-        print ("Params.py not found, input parameters manually")
-        case1, colorMode1, angle1,wl1,exposureFactor1= inputParams()
-        mode1 = num_to_mode(colorMode1)
-    else:
-        print ("Found file params.py")
-        import params
-        importlib.reload(params) # Avoid using cached copies
-        angle1=params.angle
-        case1= params.case
-        colorMode1=params.colorMode
-        wl1=np.asarray(params.wl)
-        exposureFactor1 = params.exposureFactor
-        mode1=num_to_mode(colorMode1)
-        print ("Mode:", mode1)
-
-
-    # Generate images according to case
-    if (case1 == 1):
-        # # Single image
-
-        name = input ("File location for the director field. *.txt \n")
-        POM_of_Frame(name, mode = mode1,angle = angle1)
-
-    elif (case1 ==2):
-        # # Batch by filenames
-        # Compute for all files listed in "./tmp-filenames.txt" (the exact director files need to to stored in "Interpolated_Director_Fields" folder)
-
-
-
-        with open("./tmp-filenames.txt") as fp:
-            for name in fp:
-                POM_of_Frame(name.strip('\n'), mode = mode1, angle = angle1, exposureFactor = exposureFactor1, wl = wl1)
-
-
-    elif (case1 ==3):
-        # # Batch by frames
-        # The frames are listed in "tmp-frames.txt"
-
-        frames= np.loadtxt("tmp-frames.txt", dtype = np.int32)
-
-        for frame in frames:
-            #POM_of_Frame(frame, mode, angle)
-            POM_of_Frame(frame, mode= mode1, angle= angle1, exposureFactor = exposureFactor1, wl = wl1)
-    else:
-        print ("Error, wrong case.")

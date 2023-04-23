@@ -11,12 +11,9 @@ __license__ = "MIT"
 __copyright__ = "Copyright (C) 2023, de Pablo Lab, Prtizker School of Molecular Engineering, University of Chicago."
 __version__ = '0.0.1'
 
-
-from lcpom.utils import *
-
-from lcpom.orderfield import *
-
-from lcpom.pom import *
+from .pom import *
+from .utils import *
+from .orderfield import *
 
 def _isnotebook():
 	try:
