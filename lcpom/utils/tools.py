@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib.plot as plt
-
+import matplotlib.pyplot as plt
+from scipy.spatial.transform import rotation as R
 
 def gaussian (x, mu, sig):
     return 1/ (sig*np.sqrt(2*np.pi) )*np.exp ( -0.5* ((x-mu)/sig)**2)

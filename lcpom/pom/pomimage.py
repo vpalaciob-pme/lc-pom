@@ -11,10 +11,33 @@ from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 from PIL import Image,ImageOps
 from matplotlib import cm
 
-np.set_printoptions(precision=5)
-np.set_printoptions(suppress=True)
+from ..utils.params import *
+from ..utils.tools import *
 
-plt.style.use('./large_plot.mplstyle')
+class POMImage:
+
+    def __init__(self,nlayers=None):
+        """
+        Abstract class for the POM Intensity profiles with all common information
+        :param nlayers: number of layers = number of wavelengths to compute
+        """
+        self.nlayers = nlayers
+
+class SingleWave(POMImage):
+    def __init__(self):
+        """
+        POMImage for single wavelength calculation
+        """
+    
+class MultWave(POMImage):
+    def __init__(self):
+        """
+        POMImage for multiple wavelength calculation 
+        """
+
+    
+
+
 
 #
 #  ### Reference:

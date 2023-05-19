@@ -96,20 +96,27 @@ def cie_xyz(wv):
     return res
 
 def Fresnel(theta_i, n1, n2 ):
+    """"
+    Adjusting transmittance due to boundary of LC system and background
+    """
     costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
     R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
     R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
     T_p = 1-R_p
     T_s = 1-R_s
-    #T_s = T_s*(T_s>0)
+
     return T_p, T_s
 
 def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1.0):
-    print ("Exposure factor is:", exposureFactor)
+    """
+    
+    """
+    #print ("Exposure factor is:", exposureFactor)
     #x0 = 0.964; y0 = 1.000; z0 = 0.825
     x0, y0, z0 = rgb2xyz(np.asarray (whiteRGB).reshape(1,1,3)).reshape(3)
     x0, y0, z0 = np.asarray([0.95046, 1.     , 1.08875])
     s1 = x0/sum(ws[:,0])*exposureFactor; s2 = y0/sum(ws[:,1])*exposureFactor; s3 = y0/sum(ws[:,2])*exposureFactor
-    print ("White balance scaling factor: %.2f, %.2f, %.2f" % (s1, s2, s3))
+    #### QUESTION FOR ELISE. error in s3? should it be z0?
+    #print ("White balance scaling factor: %.2f, %.2f, %.2f" % (s1, s2, s3))
 
     return s1, s2, s3

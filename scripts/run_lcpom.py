@@ -1,6 +1,6 @@
 from lcpom.pom.pomimage import POMFrame
+import numpy as np
 import click
-
 
 @click.command()
 @click.option(
@@ -61,6 +61,7 @@ def run_lcpom(mode, angle, exposure, wls, path):
 
     # POM_of_Frame(name.strip('\n'), mode = mode1, angle = angle1, exposureFactor = exposureFactor1, wl = wlStart, )
     
+    return
 
 if __name__ == "__main__":
     run_lcpom()
