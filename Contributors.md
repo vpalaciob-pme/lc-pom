@@ -1,4 +1,4 @@
-# LC-POMSimPy Developers
+# LC-POM Developers
 
 - Chuqiao (Elise) Chen (elisechen@uchicago.edu)
 - [Viviana Palacio-Betancur](https://github.com/vpalaciob-pme) (vpalaciob@uchicago.edu)
