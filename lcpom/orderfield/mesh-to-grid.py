@@ -15,8 +15,8 @@ from ..utils import *
 
 
 class LCSystem:
-
-    def __init__(self, coords, director, Sorder):
+    @dispatch
+    def __init__(self, coords: float, director: float, Sorder: float, material: str):
         """
         Geometry is a class that handles information of the LC system
         coords: coordinates, np.array nnx3
@@ -26,7 +26,21 @@ class LCSystem:
         self.coords = np.array(coords,dtype=float)
         self.director = np.array(director,dtype=float)
         self.Sorder = np.array(Sorder,dtype=float)
+
+    @dispatch
+    def __init__(self, coords: float, Qtensor: float, material: str):
+        """
+        Geometry is a class that handles information of the LC system
+        coords: coordinates, np.array nnx3
+        Qtensor : tensor order field nnx5
+        material: specifies material properties (refractive indices)
+        """
+        self.coords = np.array(coords,dtype=float)
+        self.Qtensor = np.array(Qtensor,dtype=float)
+        self.material = material        # Depending on the material lookup what function to use to calculate refractive indices
+                                        # How to do this? With a dictionary?
     
+
 
     
 def make_grid(L,dx):

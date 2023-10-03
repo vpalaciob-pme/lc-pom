@@ -2,6 +2,7 @@ import sys
 import importlib
 from os import path
 import time
+from typing import Self
 import numpy as np
 from scipy.integrate import quad,simpson
 
@@ -16,27 +17,103 @@ from ..utils.tools import *
 
 class POMImage:
 
-    def __init__(self,nlayers=None):
+    def __init__(self, nlayers: int = 1):
         """
         Abstract class for the POM Intensity profiles with all common information
         :param nlayers: number of layers = number of wavelengths to compute
-        """
-        self.nlayers = nlayers
+        """ 
+        self.nlayers = nlayers      # Should be at least one wavelength to perform calculation
 
 class SingleWave(POMImage):
     def __init__(self):
         """
         POMImage for single wavelength calculation
         """
+            
     
-class MultWave(POMImage):
+class MultiWave(POMImage):
     def __init__(self):
         """
         POMImage for multiple wavelength calculation 
         """
+    
+class Light:
 
+    def __init__(self, spectrum: float, reflect: str, source: str):
+        """
+        Characteristics of the incident light.
+        Spectrum: an array with the wavelengths of the incident light
+        Reflect: selects reflection attenuation mode: None, Fresnel, Empirical. Only valid for droplets
+        Source:  specifies if the light is treated as uniform white light, LED lamp, or Halogen lamp
+        """
+        
+        self.waves = np.array(spectrum,dtype='float')
+        self.reflect_mode = reflect
+        self.source = source
+    
     
 
+def LED(x):
+    """
+    LED returns the intensity at wavelength x from the 
+    spectrum of the microscope lamp fitted with several gaussian functions
+    """
+    y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
+    return y
+
+def light_xyz(wavelengths):
+    """
+    
+    """
+    lx = []; ly=[];lz=[]
+    wv = []
+    dl = wavelengths[1]-wavelengths[0]
+    
+    for i in range (0, len (wavelengths)-1):
+        start = wavelengths[i]
+        end = wavelengths[i+1]
+        wv.append (start + 0.5*dl)
+        x = np.linspace (start, end, 20)
+        light = LED(x)
+        res = cie_xyz(x)
+        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
+        lx.append(simpson (res[:,0],x))
+        ly.append(simpson (res[:,1],x))
+        lz.append(simpson (res[:,2],x))
+    
+    lx = np.asarray(lx)
+    ly = np.asarray(ly)
+    lz = np.asarray(lz)
+    wv = np.asarray(wv)
+    res = np.vstack([lx,ly,lz]).T
+    
+    return wv, res
+
+def cie_xyz(wv):
+    """
+    
+    """
+    waves = np.copy(wv)
+    if (np.mean(wv))<10:
+        #print("rescale units um to nm")
+        waves*=1000
+    wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
+    wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
+    wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
+    res = np.asarray([wx, wy, wz]).T
+    return res
+
+def Fresnel(theta_i, n1, n2 ):
+    """"
+    Adjusting transmittance due to boundary of LC system and background
+    """
+    costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
+    R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
+    R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
+    T_p = 1-R_p
+    T_s = 1-R_s
+
+    return T_p, T_s
 
 
 #
@@ -174,58 +251,6 @@ def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
     tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength, toReflect = toReflect)
     return tmp
 
-
-def plot_image_rgb (image_rgb, vmax = None,savename = None):
-    fig, axes = plt.subplots(1,3, sharey = True)
-    color_maps = ["Reds", "Greens", "Blues"] # These are the three color map keys
-    if (vmax == None):
-            print ("vmax not specified. set auto vmax")
-            vmax = np.max(image_rgb)
-            if (vmax>0.8 and vmax < 1.05):
-                vmax = 1.0
-            print ("vmax =", vmax)
-    for i in range (3):
-        ax = axes[i]
-        image = image_rgb[:,:,i]
-        image = np.transpose(image)
-        im = ax.imshow(image, cmap=plt.get_cmap(color_maps[i]),interpolation='bicubic',origin = 'lower',vmin = 0,vmax = vmax)
-        #ax.set_title ("0$^o$")
-        ax.set_ylim(0,image.shape[0]-1) # Seems that -1 is necessary?
-        ax.set_xlim(0,image.shape[1]-1)
-        #ax.axis("off")
-        ax.xaxis.set_visible(False)
-        ax.yaxis.set_visible(False)
-
-    dpi = matplotlib.rcParams['savefig.dpi']
-    fig.set_size_inches(3*5*image.shape[1]/dpi,5*image.shape[0]/dpi)
-
-    plt.tight_layout(pad=0)
-    if (savename != None):
-        plt.savefig(savename)
-
-    return
-
-
-
-def plot_hist_rgb (ys, savename=None):
-    fig, axes = plt.subplots(3,1,figsize = (5,5),sharex = True)
-    colors = [[1,0,0],[0,1,0],[0,0,1]]
-    #m = np.log10(np.max(ys.flatten()))
-    ys = np.asarray(ys)
-    upper = np.max(ys)
-    if (upper<1.0E-2):
-        upper = 1.0
-    for i in np.arange (2,-1,-1):
-        ax = axes[i]
-        image = ys[:,:,i]
-        ax.hist(image.flatten(), color= colors[i],bins = np.linspace (0,upper,51), density = True);
-        ax.set_yscale ("log")
-    #ax.set_xscale ("log")
-    axes[2].set_xlabel("Intensity")
-    plt.tight_layout()
-    if (savename != None):
-        plt.savefig(savename)
-    return
 
 
 def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 , toReflect = True):
