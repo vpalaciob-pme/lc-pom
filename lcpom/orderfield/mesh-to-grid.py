@@ -16,39 +16,103 @@ from ..utils import *
 
 class LCSystem:
     @dispatch
-    def __init__(self, coords: float, director: float, Sorder: float, material: str):
+    def __init__(
+        self,
+        coords: np.ndarray, 
+        director: np.ndarray, 
+        Sorder: np.ndarray, 
+        material: str = "5CB",
+    ):
         """
-        Geometry is a class that handles information of the LC system
+        LCSystem is a class that handles information of the LC system
         coords: coordinates, np.array nnx3
         director: director field, np.array nnx3
         Sorder: scalar order field, np.array nn (optional)
         """
-        self.coords = np.array(coords,dtype=float)
-        self.director = np.array(director,dtype=float)
-        self.Sorder = np.array(Sorder,dtype=float)
+        self.coords = coords
+        self.director = director
+        self.Sorder = Sorder
+        self.material = material
 
     @dispatch
-    def __init__(self, coords: float, Qtensor: float, material: str):
+    def __init__(
+        self, 
+        coords: np.ndarray, 
+        Qtensor: np.ndarray, 
+        material: str = "5CB"
+    ):
         """
-        Geometry is a class that handles information of the LC system
+        LCSystem is a class that handles information of the LC system
         coords: coordinates, np.array nnx3
         Qtensor : tensor order field nnx5
         material: specifies material properties (refractive indices)
         """
-        self.coords = np.array(coords,dtype=float)
-        self.Qtensor = np.array(Qtensor,dtype=float)
+        self.coords = coords
+        self.Qtensor = Qtensor
         self.material = material        # Depending on the material lookup what function to use to calculate refractive indices
                                         # How to do this? With a dictionary?
     
+    def calculate_box(self):
+        """
+        Calculates the enclosing box of the system in 3 dimensions.
+        Returns a 3 vector with the length of the box in x, y, z.
+        """
+        self.L_box = np.asarray([0,0,0],dtype=float)
+        centroid = np.mean(self.coords,axis=1)
+        self.coords -= centroid # Center the system at the origin.
+        Lmin = np.min(self.coords)
+        Lmax = np.max(self.coords)
+        self.L_box = Lmax - Lmin
 
 
+
+
+def interp_frame (system: LCSystem, delta: float = 0.1, directory2 = "./Interpolated_Director_Field/"):
+
+    """
+    Interp_frame interpolates the order field data onto a grid with finer resolution
+    """
+
+    # Make grid according to size of the ellipsoid
+    consts0, l_box, rr, nn = make_grid(system.L_box, dx = delta)
+
+    print ("Grid is made. ")
+
+    # Interpolate data onto finer grid
+    centroid = np.mean (system.coords,axis=1)
+    nn = interpolate (rr, system.coords, system.director, method = 'thin_plate_spline')
+    idx = np.where (ellip1(rr.T, system.L_box, centroid)>0)
+    nn[idx] = 0
+
+    if ( system.Sorder.any() != None):
+        ss = interpolate (rr, system.coords, system.Sorder, method = 'thin_plate_spline')
+        ss[idx] = 0
+    else:
+        ss = np.asarray([None])
+ 
+    # Save the interpolated director field from directory2
+    #if ( system.Sorder.any() != None):
+    #    ss = np.reshape(ss, (len(ss),1))
+    #    write_txt_s(rr, nn,ss, consts0, l_box, info, directory2)
+    #else:
+    #    write_txt(rr, nn, consts0, l_box,info,directory2)
     
-def make_grid(L,dx):
+    gridsys = LCSystem(rr,nn,ss)
+
+    return gridsys
+
+
+
+def make_grid(L: float, dx: float = 0.1):
+    """
+    Discretizes the volume of the LCSystem into a regular grid with 100nm spacing between points.
+    """
     # Box separation grid size: 0.1um
     # Padding: 10%
 
-    l_box = L *1.1; l_box[2] = L[2]*1.01
-    nl = np.ceil(l_box/dx/5)*5
+    l_box = L *1.1
+    l_box[2] = L[2]*1.01
+    nl = np.ceil(l_box/dx/5)*5   ### Ask Elise: Why 5?
     nl = np.asarray (nl, dtype= np.int32)
     l_box = nl*dx
 
@@ -56,7 +120,7 @@ def make_grid(L,dx):
     print ("nx, ny, nz", nx, ny, nz)
     print ("total data points: ", nx*ny*nz)
     if (nx*ny*nz)>1.0E8:
-        print ("Grid too fine")
+        print ("Resolution of the grid is too high. Please coarsen.")
         return
     rr = np.zeros ((nx*ny*nz, 3))
     nn = np.zeros ((nx*ny*nz, 3))
@@ -64,7 +128,7 @@ def make_grid(L,dx):
     x = np.linspace(-l_box[0]/2, l_box[0]/2, nx)
     y = np.linspace(-l_box[1]/2, l_box[1]/2, ny)
     z = np.linspace(-l_box[2]/2, l_box[2]/2, nz)
-    xv, yv,zv = np.meshgrid(x, y, z,indexing='ij')
+    xv, yv, zv = np.meshgrid(x, y, z,indexing='ij')
 
     rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
     rr = np.asarray(rr, dtype = np.float32)
@@ -73,10 +137,27 @@ def make_grid(L,dx):
     return consts0, l_box, rr, nn
 
 
+"""
+Method should be quintic, cubit or thin_plate_spline
+"""
+@dispatch
+def interpolate (rr, rr0, nn0, method = 'thin_plate'):
+
+    interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
+    nn = interp (rr)
+    nn = normalize (nn)
+    return nn
+
+@dispatch
+def interpolate (rr, rr0, ss0 ,method = 'thin_plate'):
+
+    interp = RBFInterpolator(rr0, ss0, kernel = method, smoothing = 0.1, neighbors = 12)
+    ss = interp (rr)
+    return ss
 
 
 
-
+### Old functions that I'm not sure are needed.
 def calc_error_deg (n1, n2):
     if (np.linalg.norm(n1)*np.linalg.norm(n2)>0 ):
         a = (np.dot (n1,n2)/ (np.linalg.norm(n1)*np.linalg.norm(n2)) )
@@ -90,26 +171,6 @@ def calc_error_deg (n1, n2):
     else:
         res = np.nan
     return res
-
-
-
-"""
-Method should be quintic, cubit or thin_plate_spline
-"""
-def interpolate (rr, rr0, nn0, method = 'thin_plate'):
-
-    interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
-    nn = interp (rr)
-    nn = normalize (nn)
-    return nn
-
-
-
-def interpolate_s (rr, rr0,  ss0 ,method = 'thin_plate'):
-
-    interp2 = RBFInterpolator(rr0, ss0, kernel = method, smoothing = 0.1, neighbors = 12)
-    ss = interp2 (rr)
-    return ss
 
 
 
@@ -171,39 +232,6 @@ def write_txt_s(rr, nn, ss,consts0, l_box,info,directory2):
     np.savetxt(fname, X, fmt='%.4f', delimiter= '\t',header=top)
     return
 
-
-
-"""
-The function that takes all the previous functions to interpolate and plot
-"""
-def interp_frame (system: LCSystem, L , delta, info, directory2 = "./Interpolated_Director_Field/"):
-
-    # Make grid according to size of the ellipsoid
-    consts0, l_box, rr, nn = make_grid(L, dx = delta)
-
-    print ("Grid is made. ")
-    # Interpolate on actual grid
-    centroid = np.asarray ([0,0,0])
-    nn = interpolate (rr, system.coords, system.director, method = 'thin_plate_spline')
-    idx = np.where (ellip1(rr.T, L, centroid)>0)
-    nn[idx] = 0
-
-    if (ss0.any() != None):
-        ss = interpolate_s (rr, system.coords, system.Sorder, method = 'thin_plate_spline')
-        ss[idx] = 0
-    else:
-        ss = np.asarray([None])
-
-    # Save the interpolated director field from directory2
-    if (ss0.any() != None):
-        ss = np.reshape(ss, (len(ss),1))
-        write_txt_s(rr, nn,ss, consts0, l_box,info,directory2)
-    else:
-        write_txt(rr, nn, consts0, l_box,info,directory2)
-    
-    newsys = LCSystem(rr,nn,ss)
-
-    return newsys
 
 
 
