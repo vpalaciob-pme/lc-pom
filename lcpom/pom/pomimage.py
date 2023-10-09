@@ -14,21 +14,31 @@ from matplotlib import cm
 
 from ..utils.params import *
 from ..utils.tools import *
+from ..orderfield.lcsystems import *
 
 class POMImage:
 
-    def __init__(self, nlayers: int = 1):
+    def __init__(
+            self,
+            nlayers: int,
+            Nx: int,
+            Ny: int
+    ):
         """
         Abstract class for the POM Intensity profiles with all common information
         :param nlayers: number of layers = number of wavelengths to compute
         """ 
         self.nlayers = nlayers      # Should be at least one wavelength to perform calculation
+        self.Nx = Nx
+        self.Ny = Ny
+        self.Intensity =  np.zeros((Nx,Ny))
 
 class SingleWave(POMImage):
     def __init__(self):
         """
         POMImage for single wavelength calculation
         """
+        self.nlayers = 1
             
     
 class MultiWave(POMImage):
@@ -39,7 +49,7 @@ class MultiWave(POMImage):
     
 class Light:
 
-    def __init__(self, spectrum: float, reflect: str, source: str):
+    def __init__(self, spectrum: np.ndarray, reflect: str, source: str):
         """
         Characteristics of the incident light.
         Spectrum: an array with the wavelengths of the incident light
@@ -47,19 +57,19 @@ class Light:
         Source:  specifies if the light is treated as uniform white light, LED lamp, or Halogen lamp
         """
         
-        self.waves = np.array(spectrum,dtype='float')
+        self.waves = spectrum
         self.reflect_mode = reflect
         self.source = source
     
     
-
-def LED(x):
-    """
-    LED returns the intensity at wavelength x from the 
-    spectrum of the microscope lamp fitted with several gaussian functions
-    """
-    y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
-    return y
+    @property
+    def LED(self,x):
+        """
+        LED returns the intensity at wavelength x from the 
+        spectrum of the microscope lamp fitted with several gaussian functions
+        """
+        y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
+        return y
 
 def light_xyz(wavelengths):
     """
@@ -126,38 +136,27 @@ def Fresnel(theta_i, n1, n2 ):
 #
 
 
-def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
-    print ("Calculating light intensity")
-    print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
-    print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
-    print ("Applying Fresnel equation to calcuculate transmission?", toReflect)
+def calculate_intensity (lc: LCGrid, inc_light: Light):
+
+    #print ("Calculating light intensity")
+    #print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
+    #print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
+    #print ("Applying Fresnel equation to calcuculate transmission?", toReflect)
     n2_ave = np.mean((2*n_o+n_e)/3)
     n1 = 1.33
 
-    # the header two lines
-    [Nx, Ny, Nz] = np.asarray (X[0, :3], dtype = np.int32)
-    [dx, dy, dz] = X[0, 3:6]
-    [x_min, x_max, y_min, y_max, z_min, z_max] = X[1,0:6]
-    print ("Data shape: ", X.shape)
-    print ("Number of data points:", Nx*Ny*Nz)
-    print ("dx = %.2f" %(dx))
-
-    # the actual data
-    rr = X[2:,:3]; nn = X[2:,3:6]
-
-    # Determine if the input file has S information
-    hasS = False
-    if (X.shape[1] == 7):
-        hasS = True
-        print ("Data S information, n_e and n_o has spatial variation.")
-
-
     # The non-zero n
-    idx = np.linalg.norm(nn,axis=1) > 1.0E-3
+    idx = np.linalg.norm(lc.director,axis=1) > 1.0E-3
 
     rot = np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p),0],[np.sin (alpha_p), np.cos(alpha_p),0],[0,0,1]])
     #rot2 =np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p)],[np.sin (alpha_p), np.cos(alpha_p)]])
-    Intensity = np.zeros((Nx,Ny))
+    
+    Nx = lc.grid.nl[0]
+    Ny = lc.grid.nl[1]
+    Nz = lc.grid.nl[2]
+
+    image = SingleWave(Nx,Ny)
+
     for ix in range(Nx):
 
         if ((ix+1)%(int (Nx/10)) ==0):
@@ -176,8 +175,8 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
 
                 if ( idx[iiz] ): # if the director is non-zero
 
-                    director = nn[iiz]
-                    director = np.matmul(rot, nn[iiz])
+                    director = lc.director[iiz]
+                    director = np.matmul(rot, lc.director[iiz])
                     if ( director[2] < 0 ):
                         director[2] *= -1.0 # make it point in positive z
 
@@ -215,18 +214,19 @@ def calc_image (X, alpha_p , n_o , n_e , wavelength, toReflect):
             #ep = np.matmul (rot2, ep)
             #ea = np.matmul(rot2, ea)
             res = np.matmul (ea, np.matmul (Pold, ep))
-            Intensity[ix][iy] = np.real (np.conj(res)*res)
+            image.Intensity[ix][iy] = np.real (np.conj(res)*res)
             if (iiz2>0 and toReflect == True):
                 xo, yo, zo = rr[iiz2]
                 theta_i = np.arcsin(np.sqrt ((xo**2 + yo**2)/(xo**2+yo**2+zo**2)))
                 T1, T2 = Fresnel (theta_i, n1, n2_ave)
                 trans = np.cos(theta_i)**2*T1**2 + np.sin(theta_i)**2*T2**2
                 #print (theta_i*180/np.pi, trans)
-                Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
+                
+                image.Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
 
     print("\n")
 
-    return Intensity
+    return image
 
 
 def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):

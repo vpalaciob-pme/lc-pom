@@ -14,14 +14,65 @@ from os import path
 from ..utils import *
 
 
+class Grid:
+    def __init__(
+        self,
+        Lbox,
+        nx, ny, nz,
+        deltax,
+        grid_coords
+    ):
+        self.Lbox = Lbox
+        self.nl = np.asarray([nx, ny, nz])
+        self.nn = nx*ny*nz
+        self.dx = np.asarray([deltax, deltax, deltax])
+        self.xyz = grid_coords
+  
+
+def make_grid(L: np.ndarray, dx: float = 0.1):
+    """
+    Discretizes a box of size (L,L,L) into a regular grid with 100nm = 0.1um spacing between points.
+    """
+    # Box separation grid size: 0.1um
+    # Padding: 10%
+
+    Lbox = L *1.1
+    Lbox[2] = L[2]*1.01
+    nl = np.ceil(Lbox/dx[0]/5)*5   ### Ask Elise: Why 5?
+    nl = np.asarray (nl, dtype= np.int32)
+    Lbox = nl*dx
+
+    nx, ny, nz = nl
+    nn = nx*ny*nz
+    
+    print ("nx, ny, nz", nx, ny, nz)
+    print ("total data points: ", nn)
+    if ( nn )>1.0E8:
+        print ("Resolution of the grid is too high. Please coarsen.")
+        return
+    rr = np.zeros ( (nn, 3) )
+    
+    x = np.linspace(-Lbox[0]/2, Lbox[0]/2, nx)
+    y = np.linspace(-Lbox[1]/2, Lbox[1]/2, ny)
+    z = np.linspace(-Lbox[2]/2, Lbox[2]/2, nz)
+    xv, yv, zv = np.meshgrid(x, y, z,indexing='ij')
+
+    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
+    xyz = np.asarray(rr, dtype = np.float32)
+    
+    grid = Grid( Lbox, nx, ny, nz, dx, xyz)
+
+    return grid
+
+
 class LCSystem:
     @dispatch
     def __init__(
         self,
         coords: np.ndarray, 
-        director: np.ndarray, 
         Sorder: np.ndarray, 
-        material: str = "5CB",
+        director: np.ndarray, 
+        material: str = "5CB"
     ):
         """
         LCSystem is a class that handles information of the LC system
@@ -30,8 +81,8 @@ class LCSystem:
         Sorder: scalar order field, np.array nn (optional)
         """
         self.coords = coords
-        self.director = director
         self.Sorder = Sorder
+        self.director = director
         self.material = material
 
     @dispatch
@@ -57,35 +108,105 @@ class LCSystem:
         Calculates the enclosing box of the system in 3 dimensions.
         Returns a 3 vector with the length of the box in x, y, z.
         """
-        self.L_box = np.asarray([0,0,0],dtype=float)
+        self.L = np.asarray([0,0,0],dtype=float)
         centroid = np.mean(self.coords,axis=1)
-        self.coords -= centroid # Center the system at the origin.
+        self.coords -= centroid                 # Center the system at the origin.
         Lmin = np.min(self.coords)
         Lmax = np.max(self.coords)
-        self.L_box = Lmax - Lmin
+        self.L = Lmax - Lmin
 
 
+class LCGrid:
+
+    @dispatch
+    def __init__(
+            self,
+            grid: Grid,
+            Sorder: np.ndarray,
+            director: np.ndarray,
+            material: str = "5CB",
+
+    ):
+        """
+        LCGrid is a class that handles the LC information once scalar and director order fields are interpolated onto grid
+    
+        """
+        self.grid = grid
+        self.Sorder = Sorder
+        self.director = director
+        self.material = material   
+        
+    @dispatch
+    def __init__(
+            self,
+            grid: Grid,
+            Qorder: np.ndarray,     
+            material: str = "5CB",
+
+    ):
+        """
+        LCGrid is a class that handles the LC information once Q tensor order field is interpolated onto grid
+    
+        """
+        self.grid = grid
+        self.Qorder = Qorder
+        self.material = material   
+        
 
 
-def interp_frame (system: LCSystem, delta: float = 0.1, directory2 = "./Interpolated_Director_Field/"):
+    @dispatch
+    def calculate_n(self, lamb: float):
+        """
+        Calculates the refractive indices (n_o, n_e) of 5CB for the wavelength lamb
+        """
+        l1 = 0.210; l2 = 0.282
+        n0e = 0.455; g1e = 2.325; g2e = 1.397
+        n0o = 0.414; g1o = 1.352; g2o = 0.470
+
+        n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
+        n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
+
+        return n_o, n_e
+
+    @dispatch
+    def calculate_n(self, lamb: float, s: float):
+        """
+        Calculates the refractive indices (n_o,n_e) of 5CB for the wavelength lamb
+        and order parameter s
+        """
+        l1 = 0.210; l2 = 0.282;
+        n0e = 0.455; g1e = 2.325; g2e = 1.397
+        n0o = 0.414; g1o = 1.352; g2o = 0.470
+
+        n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
+        n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
+
+        S0 = 0.68
+        delta_n = (n_e - n_o)/S0
+        abt = (n_e + 2*n_o)/3.0
+        n_e = abt + 2/3*s*delta_n
+        n_o = abt - 1/3*s*delta_n
+        
+        return n_o, n_e
+
+
+def interp_frame (system: LCSystem, delta: float = 0.1 ):
 
     """
     Interp_frame interpolates the order field data onto a grid with finer resolution
     """
 
     # Make grid according to size of the ellipsoid
-    consts0, l_box, rr, nn = make_grid(system.L_box, dx = delta)
-
-    print ("Grid is made. ")
+    grid = make_grid(system.L, dx = delta)
 
     # Interpolate data onto finer grid
     centroid = np.mean (system.coords,axis=1)
-    nn = interpolate (rr, system.coords, system.director, method = 'thin_plate_spline')
-    idx = np.where (ellip1(rr.T, system.L_box, centroid)>0)
+    nn = interpolate (grid.xyz, system.coords, system.director, method = 'thin_plate_spline')
+    idx = np.where (ellip1(grid.xyz.T, system.L_box, centroid)>0)    # Finds nodes where LC does not exist
     nn[idx] = 0
 
     if ( system.Sorder.any() != None):
-        ss = interpolate (rr, system.coords, system.Sorder, method = 'thin_plate_spline')
+        ss = interpolate (grid.xyz, system.coords, system.Sorder, method = 'thin_plate_spline')
         ss[idx] = 0
     else:
         ss = np.asarray([None])
@@ -97,59 +218,24 @@ def interp_frame (system: LCSystem, delta: float = 0.1, directory2 = "./Interpol
     #else:
     #    write_txt(rr, nn, consts0, l_box,info,directory2)
     
-    gridsys = LCSystem(rr,nn,ss)
+    LCsystem = LCGrid(grid, ss, nn, "5CB")
 
-    return gridsys
-
-
-
-def make_grid(L: float, dx: float = 0.1):
-    """
-    Discretizes the volume of the LCSystem into a regular grid with 100nm spacing between points.
-    """
-    # Box separation grid size: 0.1um
-    # Padding: 10%
-
-    l_box = L *1.1
-    l_box[2] = L[2]*1.01
-    nl = np.ceil(l_box/dx/5)*5   ### Ask Elise: Why 5?
-    nl = np.asarray (nl, dtype= np.int32)
-    l_box = nl*dx
-
-    nx, ny, nz = nl
-    print ("nx, ny, nz", nx, ny, nz)
-    print ("total data points: ", nx*ny*nz)
-    if (nx*ny*nz)>1.0E8:
-        print ("Resolution of the grid is too high. Please coarsen.")
-        return
-    rr = np.zeros ((nx*ny*nz, 3))
-    nn = np.zeros ((nx*ny*nz, 3))
-
-    x = np.linspace(-l_box[0]/2, l_box[0]/2, nx)
-    y = np.linspace(-l_box[1]/2, l_box[1]/2, ny)
-    z = np.linspace(-l_box[2]/2, l_box[2]/2, nz)
-    xv, yv, zv = np.meshgrid(x, y, z,indexing='ij')
-
-    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
-    rr = np.asarray(rr, dtype = np.float32)
-    consts0 =[nx,ny,nz,dx,dx,dx]
-    
-    return consts0, l_box, rr, nn
+    return LCsystem
 
 
-"""
-Method should be quintic, cubit or thin_plate_spline
-"""
+### Note for Pablo: How do I do dispatch when variables are either np array of size nn (ss0) or size nnx3 (nn0)
+
 @dispatch
 def interpolate (rr, rr0, nn0, method = 'thin_plate'):
 
     interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
     nn = interp (rr)
-    nn = normalize (nn)
+    nn = nn/la.norm(nn)
+
     return nn
 
 @dispatch
-def interpolate (rr, rr0, ss0 ,method = 'thin_plate'):
+def interpolate (rr, rr0, ss0, method = 'thin_plate'):
 
     interp = RBFInterpolator(rr0, ss0, kernel = method, smoothing = 0.1, neighbors = 12)
     ss = interp (rr)
