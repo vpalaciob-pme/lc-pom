@@ -57,12 +57,11 @@ class Light:
         Source:  specifies if the light is treated as uniform white light, LED lamp, or Halogen lamp
         """
         
-        self.waves = spectrum
+        self.spectrum = spectrum
         self.reflect_mode = reflect
         self.source = source
+        self.wavelength : float
     
-    
-    @property
     def LED(self,x):
         """
         LED returns the intensity at wavelength x from the 
@@ -71,59 +70,59 @@ class Light:
         y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
         return y
 
-def light_xyz(wavelengths):
-    """
-    
-    """
-    lx = []; ly=[];lz=[]
-    wv = []
-    dl = wavelengths[1]-wavelengths[0]
-    
-    for i in range (0, len (wavelengths)-1):
-        start = wavelengths[i]
-        end = wavelengths[i+1]
-        wv.append (start + 0.5*dl)
-        x = np.linspace (start, end, 20)
-        light = LED(x)
-        res = cie_xyz(x)
-        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
-        lx.append(simpson (res[:,0],x))
-        ly.append(simpson (res[:,1],x))
-        lz.append(simpson (res[:,2],x))
-    
-    lx = np.asarray(lx)
-    ly = np.asarray(ly)
-    lz = np.asarray(lz)
-    wv = np.asarray(wv)
-    res = np.vstack([lx,ly,lz]).T
-    
-    return wv, res
+    def light_xyz(self,wavelengths):
+        """
+        
+        """
+        lx = []; ly=[]; lz=[]
+        wv = []
+        dl = wavelengths[1]-wavelengths[0]
+        
+        for i in range (0, len (wavelengths)-1):
+            start = wavelengths[i]
+            end = wavelengths[i+1]
+            wv.append (start + 0.5*dl)
+            x = np.linspace (start, end, 20)
+            light = LED(x)
+            res = cie_xyz(x)
+            res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
+            lx.append(simpson (res[:,0],x))
+            ly.append(simpson (res[:,1],x))
+            lz.append(simpson (res[:,2],x))
+        
+        lx = np.asarray(lx)
+        ly = np.asarray(ly)
+        lz = np.asarray(lz)
+        wv = np.asarray(wv)
+        res = np.vstack([lx,ly,lz]).T
+        
+        return wv, res
 
-def cie_xyz(wv):
-    """
-    
-    """
-    waves = np.copy(wv)
-    if (np.mean(wv))<10:
-        #print("rescale units um to nm")
-        waves*=1000
-    wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
-    wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
-    wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
-    res = np.asarray([wx, wy, wz]).T
-    return res
+    def cie_xyz(wv):
+        """
+        
+        """
+        waves = np.copy(wv)
+        if (np.mean(wv))<10:
+            #print("rescale units um to nm")
+            waves*=1000
+        wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
+        wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
+        wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
+        res = np.asarray([wx, wy, wz]).T
+        return res
 
-def Fresnel(theta_i, n1, n2 ):
-    """"
-    Adjusting transmittance due to boundary of LC system and background
-    """
-    costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
-    R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
-    R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
-    T_p = 1-R_p
-    T_s = 1-R_s
+    def Fresnel(theta_i, n1, n2 ):
+        """"
+        Adjusting transmittance due to boundary of LC system and background
+        """
+        costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
+        R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
+        R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
+        T_p = 1-R_p
+        T_s = 1-R_s
 
-    return T_p, T_s
+        return T_p, T_s
 
 
 #
@@ -135,22 +134,76 @@ def Fresnel(theta_i, n1, n2 ):
 # Simulating optical polarizing microscopy textures using Jones calculus: a review exemplified with nematic liquid crystal tori
 #
 
+def rotation(alpha_p: float):
+    """
+    Jones matrix operator to rotate light around the optical axis.
+
+    Args:
+        alpha : angle of rotation around optical axis  [radians]
+    Returns:
+        3x3 matrix of the rotation operator           [-]
+    """
+    
+    rot = np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p), 0], 
+                       [np.sin (alpha_p), np.cos(alpha_p), 0], 
+                       [0,0,1]])
+
+    return rot
+
+def retardation(gamma: float, dphi: float):
+    """
+    Jones matrix operator to calculate the phase retardation.
+
+    Args:
+        gamma : angle of rotation around optical axis  [radians]
+        dphi  : phase delay difference between ordinary and extraordinary axis
+    Returns:
+        2X2 matrix of the retardation operator           [-]
+    """
+                    
+    Sr = np.eye(2, dtype = complex)
+
+    CG = np.cos(gamma)
+    SG = np.sin(gamma)
+
+    ## I'm pretty sure my math is right on this one, but Elise please double check :)
+    PP = np.exp(+dphi/2*1j)  # S_22
+    QP = np.exp(-dphi/2*1j)  # S_11
+    DP = np.sin(dphi/2) * 2j
+
+    Sr[0][0] = CG*CG*PP + SG*SG*QP
+    Sr[0][1] = -SG*CG*DP
+    Sr[1][0] = -SG*CG*DP
+    Sr[1][1] = SG*SG*PP + CG*CG*QP
+
+    return Sr
+
 
 def calculate_intensity (lc: LCGrid, inc_light: Light):
+    """
+    Calculates the resulting light intensity after it travels through an anisotropic media
+    Information about the material is encoded in lc, and details about the inciden light
+    are encoded in inc_light
 
+    Args:
+        lc        : Liquid crystal parameters and grid information
+        inc_light : Incident light information, including the 'active' wavelength
+    Returns:
+        image     : SingleWave class that includes the Intensity map of the specified wavelength
+    """
     #print ("Calculating light intensity")
     #print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
     #print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
     #print ("Applying Fresnel equation to calcuculate transmission?", toReflect)
-    n2_ave = np.mean((2*n_o+n_e)/3)
+    n2_avg = np.mean((2*lc.no+lc.ne)/3)
     n1 = 1.33
 
-    # The non-zero n
+    # Identify nodes with non-zero director field.
     idx = np.linalg.norm(lc.director,axis=1) > 1.0E-3
 
-    rot = np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p),0],[np.sin (alpha_p), np.cos(alpha_p),0],[0,0,1]])
-    #rot2 =np.asarray ([[np.cos (alpha_p), -np.sin(alpha_p)],[np.sin (alpha_p), np.cos(alpha_p)]])
+    rot = rotation(inc_light.alpha)
     
+    # Discretization parameters
     Nx = lc.grid.nl[0]
     Ny = lc.grid.nl[1]
     Nz = lc.grid.nl[2]
@@ -165,10 +218,11 @@ def calculate_intensity (lc: LCGrid, inc_light: Light):
 
             # Initialize
             Pold = np.eye(2,dtype=complex)
-            Sr = np.eye(2, dtype = complex)
-            gamma0 = 0 # incident light direction
+            #Sr = np.eye(2, dtype = complex)
+            gamma0 = 0 # incident light 
 
             iiz2 = -1
+            # Accumulates light retardation through LC media in the z direction
             for iz in range(Nz):
             #for iz in range(int (Nz*(0.5-0.05)),int (Nz*(0.5+0.05))):
                 iiz = iz + iy*Nz + ix*Ny*Nz # the id of the cell
@@ -187,23 +241,17 @@ def calculate_intensity (lc: LCGrid, inc_light: Light):
                     #gamma0 = gamma1 # take this to be the next "incident light polarization"
 
                     if (hasS == False):
-                        phio = 2*np.pi*n_o*dz/wavelength # To calculate the rotation matrix
-                        denom = [n_o*np.sin(beta), n_e*np.cos(beta)]
-                        nebeta = n_o*n_e/np.linalg.norm(denom) #beta is gamma in the paper
+                        phio = 2*np.pi*lc.no*lc.grid.dx[2]/inc_light.wavelength # To calculate the rotation matrix
+                        denom = [lc.no*np.sin(beta), lc.ne*np.cos(beta)]
+                        nebeta = lc.no*lc.ne/np.linalg.norm(denom) #beta is gamma in the paper
                     else:
-                        phio = 2*np.pi*n_o[iiz]*dz/wavelength
-                        denom = [n_o[iiz]*np.sin(beta), n_e[iiz]*np.cos(beta)]
-                        nebeta = n_o[iiz]*n_e[iiz]/np.linalg.norm(denom) #beta is gamma in the paper
+                        phio = 2*np.pi*lc.no[iiz]*lc.grid.dx[2]/inc_light.wavelength
+                        denom = [lc.no[iiz]*np.sin(beta), lc.ne[iiz]*np.cos(beta)]
+                        nebeta = lc.no[iiz]*lc.ne[iiz]/np.linalg.norm(denom) #beta is gamma in the paper
 
+                    phie = 2*np.pi*nebeta*lc.grid.dx[2]/inc_light.waves
 
-                    phie = 2*np.pi*nebeta*dz/wavelength
-                    cs_phie = np.cos(phie) + 1j*np.sin(phie) # S_22
-                    cs_phio = np.cos(phio) + 1j*np.sin(phio) # S_11
-
-                    Sr[0][0] = np.power(np.cos(gamma),2)*cs_phie  + np.power(np.sin(gamma),2)*cs_phio
-                    Sr[0][1] = -np.sin(gamma)*np.cos(gamma)*( cs_phie - cs_phio )
-                    Sr[1][0] = -np.sin(gamma)*np.cos(gamma)*( cs_phie - cs_phio )
-                    Sr[1][1] = np.power(np.sin(gamma),2)*cs_phie  + np.power(np.cos(gamma),2)*cs_phio
+                    Sr = retardation(gamma, phio-phie )
 
                     Pnew = np.matmul(Sr,Pold)
                     Pold = Pnew
@@ -211,20 +259,17 @@ def calculate_intensity (lc: LCGrid, inc_light: Light):
 
             ep = np.asarray([1,0], dtype = complex)
             ea = np.asarray([0,1], dtype = complex)
-            #ep = np.matmul (rot2, ep)
-            #ea = np.matmul(rot2, ea)
             res = np.matmul (ea, np.matmul (Pold, ep))
             image.Intensity[ix][iy] = np.real (np.conj(res)*res)
-            if (iiz2>0 and toReflect == True):
-                xo, yo, zo = rr[iiz2]
+
+            if (iiz2>0 and inc_light.reflect_mode == "Fresnel"):
+                xo, yo, zo = lc.grid.xyz[iiz2]
                 theta_i = np.arcsin(np.sqrt ((xo**2 + yo**2)/(xo**2+yo**2+zo**2)))
-                T1, T2 = Fresnel (theta_i, n1, n2_ave)
+                T1, T2 = Fresnel (theta_i, n1, n2_avg)
                 trans = np.cos(theta_i)**2*T1**2 + np.sin(theta_i)**2*T2**2
                 #print (theta_i*180/np.pi, trans)
-                
-                image.Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
 
-    print("\n")
+                image.Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
 
     return image
 
@@ -276,7 +321,7 @@ def n_to_rgb_simp (fname, wavelengths = [0.65,0.55,0.45], alpha_p =0 , toReflect
             n_o, n_e = calc_n_s (wave, ss)
         else:
             n_o, n_e = calc_n (wave)
-        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave, toReflect = toReflect))
+        res.append(  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wave, reflect = toReflect))
     r = res[0]
     g = res[1]
     b = res[2]

@@ -11,8 +11,7 @@ from plum import dispatch
 from os import path
 
 # Local imports
-from ..utils import *
-
+from ..utils.tools import *
 
 class Grid:
     def __init__(
@@ -124,8 +123,7 @@ class LCGrid:
             grid: Grid,
             Sorder: np.ndarray,
             director: np.ndarray,
-            material: str = "5CB",
-
+            material: str = "5CB"
     ):
         """
         LCGrid is a class that handles the LC information once scalar and director order fields are interpolated onto grid
@@ -134,14 +132,17 @@ class LCGrid:
         self.grid = grid
         self.Sorder = Sorder
         self.director = director
-        self.material = material   
+        self.material = material
+        self.no : np.ndarray
+        self.ne : np.ndarray  
         
+
     @dispatch
     def __init__(
             self,
             grid: Grid,
             Qorder: np.ndarray,     
-            material: str = "5CB",
+            material: str = "5CB"
 
     ):
         """
@@ -150,10 +151,10 @@ class LCGrid:
         """
         self.grid = grid
         self.Qorder = Qorder
-        self.material = material   
+        self.material = material
+        self.no : np.ndarray
+        self.ne : np.ndarray    
         
-
-
     @dispatch
     def calculate_n(self, lamb: float):
         """
@@ -163,18 +164,18 @@ class LCGrid:
         n0e = 0.455; g1e = 2.325; g2e = 1.397
         n0o = 0.414; g1o = 1.352; g2o = 0.470
 
-        n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
-        n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
+        self.ne = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
+        self.no = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
 
-        return n_o, n_e
 
     @dispatch
-    def calculate_n(self, lamb: float, s: float):
+    def calculate_n(self, lamb: float, s: np.ndarray):
         """
         Calculates the refractive indices (n_o,n_e) of 5CB for the wavelength lamb
         and order parameter s
         """
-        l1 = 0.210; l2 = 0.282;
+        l1 = 0.210
+        l2 = 0.282
         n0e = 0.455; g1e = 2.325; g2e = 1.397
         n0o = 0.414; g1o = 1.352; g2o = 0.470
 
@@ -184,11 +185,9 @@ class LCGrid:
         S0 = 0.68
         delta_n = (n_e - n_o)/S0
         abt = (n_e + 2*n_o)/3.0
-        n_e = abt + 2/3*s*delta_n
-        n_o = abt - 1/3*s*delta_n
+        self.ne = abt + 2/3*s*delta_n
+        self.no = abt - 1/3*s*delta_n
         
-        return n_o, n_e
-
 
 def interp_frame (system: LCSystem, delta: float = 0.1 ):
 
@@ -230,9 +229,8 @@ def interpolate (rr, rr0, nn0, method = 'thin_plate'):
 
     interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
     nn = interp (rr)
-    nn = nn/la.norm(nn)
 
-    return nn
+    return normalize_vector(nn)
 
 @dispatch
 def interpolate (rr, rr0, ss0, method = 'thin_plate'):

@@ -2,6 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import rotation as R
 
+def normalize_vector(J):
+    """
+    Normalize a vector by dividing each part by common number.
+
+    After normalization the magnitude should be equal to ~1.
+    """
+    norm = np.linalg.norm(J)
+    if norm == 0:
+        return J
+    return J / norm
+
 def gaussian (x, mu, sig):
     return 1/ (sig*np.sqrt(2*np.pi) )*np.exp ( -0.5* ((x-mu)/sig)**2)
 
