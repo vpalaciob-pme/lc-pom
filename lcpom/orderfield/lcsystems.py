@@ -28,7 +28,7 @@ class Grid:
         self.xyz = grid_coords
   
 
-def make_grid(L: np.ndarray, dx: float = 0.1):
+def make_grid(L: np.ndarray, dx: np.ndarray ):
     """
     Discretizes a box of size (L,L,L) into a regular grid with 100nm = 0.1um spacing between points.
     """
@@ -142,7 +142,7 @@ class LCGrid:
             self,
             grid: Grid,
             Qorder: np.ndarray,     
-            material: str = "5CB"
+            material: str = "5CB"   
 
     ):
         """
@@ -217,9 +217,9 @@ def interp_frame (system: LCSystem, delta: float = 0.1 ):
     #else:
     #    write_txt(rr, nn, consts0, l_box,info,directory2)
     
-    LCsystem = LCGrid(grid, ss, nn, "5CB")
+    LCinfo = LCGrid(grid, ss, nn, "5CB")
 
-    return LCsystem
+    return LCinfo
 
 
 ### Note for Pablo: How do I do dispatch when variables are either np array of size nn (ss0) or size nnx3 (nn0)
