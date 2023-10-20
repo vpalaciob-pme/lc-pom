@@ -28,49 +28,83 @@ class Grid:
         self.xyz = grid_coords
   
 
-def make_grid(L: np.ndarray, dx: np.ndarray ):
-    """
-    Discretizes a box of size (L,L,L) into a regular grid with 100nm = 0.1um spacing between points.
-    """
-    # Box separation grid size: 0.1um
-    # Padding: 10%
+class OrderField:
+    @dispatch
+    def __init__(
+        self,
+        coords: np.ndarray,
+        S : float,
+        director: np.ndarray
+    ):
+        self.coords = coords
+        self.director = director
+        self.scalar = np.ones((director.size(),1),dtype=float)*S
+        self.Qtensor = self.calculate_tensor(S,director)
 
-    Lbox = L *1.1
-    Lbox[2] = L[2]*1.01
-    nl = np.ceil(Lbox/dx[0]/5)*5   ### Ask Elise: Why 5?
-    nl = np.asarray (nl, dtype= np.int32)
-    Lbox = nl*dx
+    @dispatch
+    def __init__(
+        self,
+        coords: np.ndarray,
+        Qorder: np.ndarray
+    ):
+        self.coords = coords
+        self.Qtensor = Qorder
+        self.scalar, self.director = self.calculate_scalar_vector(Qorder)
+       
+    def calculate_scalar_vector(Qorder: np.ndarray):
+        nodes = Qorder.size()[0]
+        n = np.zeros((nodes,3))
+        S = np.zeros((nodes,1))
 
-    nx, ny, nz = nl
-    nn = nx*ny*nz
+        for i in range(0,nodes-1):
+            Q = self.v_to_m(Qorder[i,:])
+            vals, vects = la.eig(Q)
+            j = vals.argmax()
+            S[i] = vals[j]*1.5
+            n[i] = vects[:,j]
+
+        return S, n
+
+    def calculate_tensor(S: np.ndarray, n: np.ndarray):
+        nodes = n.size()[0]
+        QQ = np.zeros((nodes,5))
+
+        for i in range(0,nodes-1):
+            nn = n[i,:]
+            SS = S[i]
+            QQ[i,0] = SS*(n[0]*n[0] - 1./3.)
+            QQ[i,1] = SS*n[0]*n[1]
+            QQ[i,2] = SS*n[0]*n[2]
+            QQ[i,3] = SS*(n[1]*n[1] - 1./3.)
+            QQ[i,4] = SS*n[1]*n[2]           
+
+        return QQ
     
-    print ("nx, ny, nz", nx, ny, nz)
-    print ("total data points: ", nn)
-    if ( nn )>1.0E8:
-        print ("Resolution of the grid is too high. Please coarsen.")
-        return
-    rr = np.zeros ( (nn, 3) )
-    
-    x = np.linspace(-Lbox[0]/2, Lbox[0]/2, nx)
-    y = np.linspace(-Lbox[1]/2, Lbox[1]/2, ny)
-    z = np.linspace(-Lbox[2]/2, Lbox[2]/2, nz)
-    xv, yv, zv = np.meshgrid(x, y, z,indexing='ij')
+    def v_to_m(v: np.ndarray):
+        """
+        Converts a vector of size 5 into a symmetric and traceless 3x3 matrix
+        Useful when converting the independent entries of Q onto the tensor form
+        """
+        m = np.zeros((3,3))
 
-    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
-    xyz = np.asarray(rr, dtype = np.float32)
-    
-    grid = Grid( Lbox, nx, ny, nz, dx, xyz)
+        m[0][0] = v[0]
+        m[0][1] = v[1]
+        m[0][2] = v[2]
+        m[1][0] = v[1]
+        m[1][1] = v[3]
+        m[1][2] = v[4]
+        m[2][0] = v[2]
+        m[2][1] = v[4]
+        m[2][2] = - v[0] - v[3]
 
-    return grid
-
+        return m
+        
 
 class LCSystem:
     @dispatch
     def __init__(
         self,
-        coords: np.ndarray, 
-        Sorder: np.ndarray, 
-        director: np.ndarray, 
+        order: OrderField,
         material: str = "5CB"
     ):
         """
@@ -79,29 +113,11 @@ class LCSystem:
         director: director field, np.array nnx3
         Sorder: scalar order field, np.array nn (optional)
         """
-        self.coords = coords
-        self.Sorder = Sorder
-        self.director = director
+        self.coords = order.coords
+        self.Sorder = order.scalar
+        self.director = order.director
         self.material = material
 
-    @dispatch
-    def __init__(
-        self, 
-        coords: np.ndarray, 
-        Qtensor: np.ndarray, 
-        material: str = "5CB"
-    ):
-        """
-        LCSystem is a class that handles information of the LC system
-        coords: coordinates, np.array nnx3
-        Qtensor : tensor order field nnx5
-        material: specifies material properties (refractive indices)
-        """
-        self.coords = coords
-        self.Qtensor = Qtensor
-        self.material = material        # Depending on the material lookup what function to use to calculate refractive indices
-                                        # How to do this? With a dictionary?
-    
     def calculate_box(self):
         """
         Calculates the enclosing box of the system in 3 dimensions.
@@ -188,6 +204,42 @@ class LCGrid:
         self.ne = abt + 2/3*s*delta_n
         self.no = abt - 1/3*s*delta_n
         
+
+def make_grid(L: np.ndarray, dx: np.ndarray ):
+    """
+    Discretizes a box of size (L,L,L) into a regular grid with 100nm = 0.1um spacing between points.
+    """
+    # Box separation grid size: 0.1um
+    # Padding: 10%
+
+    Lbox = L *1.1
+    Lbox[2] = L[2]*1.01
+    nl = np.ceil(Lbox/dx[0]/5)*5   ### Ask Elise: Why 5?
+    nl = np.asarray (nl, dtype= np.int32)
+    Lbox = nl*dx
+
+    nx, ny, nz = nl
+    nn = nx*ny*nz
+    
+    print ("nx, ny, nz", nx, ny, nz)
+    print ("total data points: ", nn)
+    if ( nn )>1.0E8:
+        print ("Resolution of the grid is too high. Please coarsen.")
+        return
+    rr = np.zeros ( (nn, 3) )
+    
+    x = np.linspace(-Lbox[0]/2, Lbox[0]/2, nx)
+    y = np.linspace(-Lbox[1]/2, Lbox[1]/2, ny)
+    z = np.linspace(-Lbox[2]/2, Lbox[2]/2, nz)
+    xv, yv, zv = np.meshgrid(x, y, z,indexing='ij')
+
+    rr[:,0] = xv.flatten();rr[:,1] = yv.flatten();rr[:,2] = zv.flatten()
+    xyz = np.asarray(rr, dtype = np.float32)
+    
+    grid = Grid( Lbox, nx, ny, nz, dx, xyz)
+
+    return grid
+
 
 def interp_frame (system: LCSystem, delta: float = 0.1 ):
 

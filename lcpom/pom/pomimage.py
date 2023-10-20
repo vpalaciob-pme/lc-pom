@@ -6,7 +6,7 @@ from typing import Self
 import numpy as np
 from scipy.integrate import quad,simpson
 
-import matplotlib
+import matplotlib 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 from PIL import Image,ImageOps
@@ -47,7 +47,7 @@ class MultiWave(POMImage):
         POMImage for multiple wavelength calculation 
         """
     
-class Light:
+class LightSource:
 
     def __init__(self, spectrum: np.ndarray, reflect: str, source: str):
         """
@@ -62,67 +62,73 @@ class Light:
         self.source = source
         self.wavelength : float
     
-    def LED(self,x):
-        """
-        LED returns the intensity at wavelength x from the 
-        spectrum of the microscope lamp fitted with several gaussian functions
-        """
-        y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
-        return y
+class LED(LightSource):
+        
+        def __init__(self):
 
-    def light_xyz(self,wavelengths):
-        """
+            """
+            LED returns the intensity at wavelength x from the 
+            spectrum of the microscope lamp fitted with several gaussian functions
+            """
         
-        """
-        lx = []; ly=[]; lz=[]
-        wv = []
-        dl = wavelengths[1]-wavelengths[0]
-        
-        for i in range (0, len (wavelengths)-1):
-            start = wavelengths[i]
-            end = wavelengths[i+1]
-            wv.append (start + 0.5*dl)
-            x = np.linspace (start, end, 20)
-            light = LED(x)
-            res = cie_xyz(x)
-            res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
-            lx.append(simpson (res[:,0],x))
-            ly.append(simpson (res[:,1],x))
-            lz.append(simpson (res[:,2],x))
-        
-        lx = np.asarray(lx)
-        ly = np.asarray(ly)
-        lz = np.asarray(lz)
-        wv = np.asarray(wv)
-        res = np.vstack([lx,ly,lz]).T
-        
-        return wv, res
+            self.source = "LED"
 
-    def cie_xyz(wv):
-        """
+            self.y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
         
-        """
-        waves = np.copy(wv)
-        if (np.mean(wv))<10:
-            #print("rescale units um to nm")
-            waves*=1000
-        wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
-        wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
-        wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
-        res = np.asarray([wx, wy, wz]).T
-        return res
 
-    def Fresnel(theta_i, n1, n2 ):
-        """"
-        Adjusting transmittance due to boundary of LC system and background
-        """
-        costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
-        R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
-        R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
-        T_p = 1-R_p
-        T_s = 1-R_s
+def light_xyz(self,wavelengths):
+    """
+    
+    """
+    lx = []; ly=[]; lz=[]
+    wv = []
+    dl = wavelengths[1]-wavelengths[0]
+    
+    for i in range (0, len (wavelengths)-1):
+        start = wavelengths[i]
+        end = wavelengths[i+1]
+        wv.append (start + 0.5*dl)
+        x = np.linspace (start, end, 20)
+        light = LED(x)
+        res = cie_xyz(x)
+        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
+        lx.append(simpson (res[:,0],x))
+        ly.append(simpson (res[:,1],x))
+        lz.append(simpson (res[:,2],x))
+    
+    lx = np.asarray(lx)
+    ly = np.asarray(ly)
+    lz = np.asarray(lz)
+    wv = np.asarray(wv)
+    res = np.vstack([lx,ly,lz]).T
+    
+    return wv, res
 
-        return T_p, T_s
+def cie_xyz(wv):
+    """
+    
+    """
+    waves = np.copy(wv)
+    if (np.mean(wv))<10:
+        #print("rescale units um to nm")
+        waves*=1000
+    wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
+    wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
+    wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
+    res = np.asarray([wx, wy, wz]).T
+    return res
+
+def Fresnel(theta_i, n1, n2 ):
+    """"
+    Adjusting transmittance due to boundary of LC system and background
+    """
+    costheta_t = np.sqrt (1-n1/n2*np.sin(theta_i)**2)
+    R_p = ((n1*costheta_t-n2*np.cos (theta_i))/(n1*costheta_t+n2*np.cos (theta_i)))**2
+    R_s = ((n2*costheta_t-n1*np.cos (theta_i))/(n2*costheta_t+n1*np.cos (theta_i)))**2
+    T_p = 1-R_p
+    T_s = 1-R_s
+
+    return T_p, T_s
 
 
 #
@@ -179,7 +185,7 @@ def retardation(gamma: float, dphi: float):
     return Sr
 
 
-def calculate_intensity (lc: LCGrid, inc_light: Light):
+def calculate_intensity (lc: LCGrid, inc_light: LightSource):
     """
     Calculates the resulting light intensity after it travels through an anisotropic media
     Information about the material is encoded in lc, and details about the inciden light
@@ -253,7 +259,7 @@ def calculate_intensity (lc: LCGrid, inc_light: Light):
 
                     Sr = retardation(gamma, phio-phie )
 
-                    Pnew = np.matmul(Sr,Pold)
+                    Pnew = Sr @ Pold
                     Pold = Pnew
                     iiz2 = np.copy(iiz)
 
