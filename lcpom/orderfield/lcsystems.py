@@ -45,6 +45,18 @@ class OrderField:
     def __init__(
         self,
         coords: np.ndarray,
+        S : np.ndarray,
+        director: np.ndarray
+    ):
+        self.coords = coords
+        self.director = director
+        self.scalar = S
+        self.Qtensor = self.calculate_tensor(S,director)
+
+    @dispatch
+    def __init__(
+        self,
+        coords: np.ndarray,
         Qorder: np.ndarray
     ):
         self.coords = coords
@@ -113,6 +125,7 @@ class LCSystem:
         director: director field, np.array nnx3
         Sorder: scalar order field, np.array nn (optional)
         """
+        self.all_order = order
         self.coords = order.coords
         self.Sorder = order.scalar
         self.director = order.director
@@ -137,8 +150,7 @@ class LCGrid:
     def __init__(
             self,
             grid: Grid,
-            Sorder: np.ndarray,
-            director: np.ndarray,
+            order: OrderField,
             material: str = "5CB"
     ):
         """
@@ -146,31 +158,12 @@ class LCGrid:
     
         """
         self.grid = grid
-        self.Sorder = Sorder
-        self.director = director
+        self.Sorder = order.scalar
+        self.director = order.director
         self.material = material
         self.no : np.ndarray
         self.ne : np.ndarray  
-        
-
-    @dispatch
-    def __init__(
-            self,
-            grid: Grid,
-            Qorder: np.ndarray,     
-            material: str = "5CB"   
-
-    ):
-        """
-        LCGrid is a class that handles the LC information once Q tensor order field is interpolated onto grid
-    
-        """
-        self.grid = grid
-        self.Qorder = Qorder
-        self.material = material
-        self.no : np.ndarray
-        self.ne : np.ndarray    
-        
+     
     @dispatch
     def calculate_n(self, lamb: float):
         """
@@ -253,15 +246,14 @@ def interp_frame (system: LCSystem, delta: float = 0.1 ):
     # Interpolate data onto finer grid
     centroid = np.mean (system.coords,axis=1)
     nn = interpolate (grid.xyz, system.coords, system.director, method = 'thin_plate_spline')
+    nn = normalize_vector(nn)
     idx = np.where (ellip1(grid.xyz.T, system.L_box, centroid)>0)    # Finds nodes where LC does not exist
     nn[idx] = 0
 
-    if ( system.Sorder.any() != None):
-        ss = interpolate (grid.xyz, system.coords, system.Sorder, method = 'thin_plate_spline')
-        ss[idx] = 0
-    else:
-        ss = np.asarray([None])
- 
+
+    ss = interpolate (grid.xyz, system.coords, system.Sorder, method = 'thin_plate_spline')
+    ss[idx] = 0
+
     # Save the interpolated director field from directory2
     #if ( system.Sorder.any() != None):
     #    ss = np.reshape(ss, (len(ss),1))
@@ -274,24 +266,12 @@ def interp_frame (system: LCSystem, delta: float = 0.1 ):
     return LCinfo
 
 
-### Note for Pablo: How do I do dispatch when variables are either np array of size nn (ss0) or size nnx3 (nn0)
+def interpolate (x0, x1, y0, method = 'thin_plate'):
 
-@dispatch
-def interpolate (rr, rr0, nn0, method = 'thin_plate'):
+    interp = RBFInterpolator(x0, y0, kernel = method, smoothing = 0.1, neighbors = 12)
+    y1 = interp (x1)
 
-    interp = RBFInterpolator(rr0, nn0, kernel = method, smoothing = 0.1, neighbors = 12)
-    nn = interp (rr)
-
-    return normalize_vector(nn)
-
-@dispatch
-def interpolate (rr, rr0, ss0, method = 'thin_plate'):
-
-    interp = RBFInterpolator(rr0, ss0, kernel = method, smoothing = 0.1, neighbors = 12)
-    ss = interp (rr)
-    return ss
-
-
+    return y1
 
 ### Old functions that I'm not sure are needed.
 def calc_error_deg (n1, n2):
