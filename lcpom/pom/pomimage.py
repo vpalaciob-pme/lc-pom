@@ -140,6 +140,107 @@ def Fresnel(theta_i, n1, n2 ):
 # Simulating optical polarizing microscopy textures using Jones calculus: a review exemplified with nematic liquid crystal tori
 #
 
+# # Let's start to make POM images!
+
+
+"""
+frame input types:
+1. int
+    that corresponds to a frame in an animation
+2. string
+    that corresponds to the file name of the interpolated director field
+"""
+def POMFrame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
+
+    print ("="*100)
+    print ("Calculation started")
+    print ("="*100)
+    time1 = time.time()
+    directory1 = "./Interpolated_Director_Field/"
+    directory2 = "./Images/"
+    angle = angle*np.pi/180.0
+
+    angle1 = np.copy(angle)
+    exposureFactor1 = np.copy(exposureFactor)
+    # Load
+    if (type(frame) == int):
+        fname = directory1+ "Frame-"+str(frame)+"-interpolated-directors.txt"
+        info = directory2+"Frame-"+str(frame)
+    elif (type(frame) == str):
+        fname = directory1+frame
+        n2 = path.splitext(frame)[0]
+        info = directory2+n2
+    else:
+        print ("Error: wrong filename")
+        return
+
+    # Calculate images according to mode
+    if (mode == "Single-wavelength"):
+
+        #wave = wl
+        image = n_to_intensity(fname, wavelength = wl, alpha_p = angle1, toReflect = toReflect1)
+        #image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
+
+        ## Plot it
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
+        plot_image(image,vmax = 1.0, savename = picname)
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
+        plot_hist (image,savename = picname)
+
+    if (mode == "Simp-color"):
+        print ("Naive RGB image calculations")
+        # Calculate RGB images
+        image_rgb = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
+        # RGB channel plots
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-channels.png"
+        plot_image_rgb(image_rgb,vmax = 1.0,savename = picname)
+        # RGB histograms
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-hist.png"
+        plot_hist_rgb (image_rgb, savename=picname)
+        # RGB images
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB.png"
+        plot_image(image_rgb,vmax = 1.0,savename = picname)
+
+    if (mode == "Full-color"):
+
+        print ("RGB image from multiple wavelengths")
+
+        # Initialize continuous wavelengths
+        if wl is None:
+            print ("Default wavelengths")
+            wl = np.arange(.400, .681, .014)
+
+
+         # Calculate images
+        image_rgbf0 = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
+
+        # Plot RGB images
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB.png"
+        plot_image(image_rgbf0 ,vmax = 1.0, savename = picname)
+
+        # RGB channel plots
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-channels.png"
+        plot_image_rgb(image_rgbf0,vmax = 1.0,savename = picname)
+
+        # Plot histograms
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-Hist.png"
+        plot_hist_rgb(image_rgbf0, savename = picname)
+
+        # Plot BW
+        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+"-BW.png"
+        plot_image(RGB_to_BW(image_rgbf0),vmax= 1.0, savename = picname)
+
+        # Save .npy files
+        npyname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+".npy"
+        np.save (npyname, image_rgbf0)
+
+        time2 = time.time()
+        t = time2-time1
+        print ("Elapsed time: %.1f s \n" % t)
+    plt.close ("all")
+    return
+
+
 def rotation(alpha_p: float):
     """
     Jones matrix operator to rotate light around the optical axis.
@@ -183,7 +284,6 @@ def retardation(gamma: float, dphi: float):
     Sr[1][1] = SG*SG*PP + CG*CG*QP
 
     return Sr
-
 
 def calculate_intensity (lc: LCGrid, inc_light: LightSource):
     """
@@ -448,102 +548,3 @@ def n_to_rgb_full(fname, wavelengths = np.arange(.400, .681, .02), angle = 0, ex
     return res
 
 
-# # Let's start to make POM images!
-
-
-"""
-frame input types:
-1. int
-    that corresponds to a frame in an animation
-2. string
-    that corresponds to the file name of the interpolated director field
-"""
-def POMFrame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
-
-    print ("="*100)
-    print ("Calculation started")
-    print ("="*100)
-    time1 = time.time()
-    directory1 = "./Interpolated_Director_Field/"
-    directory2 = "./Images/"
-    angle = angle*np.pi/180.0
-
-    angle1 = np.copy(angle)
-    exposureFactor1 = np.copy(exposureFactor)
-    # Load
-    if (type(frame) == int):
-        fname = directory1+ "Frame-"+str(frame)+"-interpolated-directors.txt"
-        info = directory2+"Frame-"+str(frame)
-    elif (type(frame) == str):
-        fname = directory1+frame
-        n2 = path.splitext(frame)[0]
-        info = directory2+n2
-    else:
-        print ("Error: wrong filename")
-        return
-
-    # Calculate images according to mode
-    if (mode == "Single-wavelength"):
-
-        #wave = wl
-        image = n_to_intensity(fname, wavelength = wl, alpha_p = angle1, toReflect = toReflect1)
-        #image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
-
-        ## Plot it
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
-        plot_image(image,vmax = 1.0, savename = picname)
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
-        plot_hist (image,savename = picname)
-
-    if (mode == "Simp-color"):
-        print ("Naive RGB image calculations")
-        # Calculate RGB images
-        image_rgb = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
-        # RGB channel plots
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-channels.png"
-        plot_image_rgb(image_rgb,vmax = 1.0,savename = picname)
-        # RGB histograms
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-hist.png"
-        plot_hist_rgb (image_rgb, savename=picname)
-        # RGB images
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB.png"
-        plot_image(image_rgb,vmax = 1.0,savename = picname)
-
-    if (mode == "Full-color"):
-
-        print ("RGB image from multiple wavelengths")
-
-        # Initialize continuous wavelengths
-        if wl is None:
-            print ("Default wavelengths")
-            wl = np.arange(.400, .681, .014)
-
-
-         # Calculate images
-        image_rgbf0 = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
-
-        # Plot RGB images
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB.png"
-        plot_image(image_rgbf0 ,vmax = 1.0, savename = picname)
-
-        # RGB channel plots
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-channels.png"
-        plot_image_rgb(image_rgbf0,vmax = 1.0,savename = picname)
-
-        # Plot histograms
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-Hist.png"
-        plot_hist_rgb(image_rgbf0, savename = picname)
-
-        # Plot BW
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+"-BW.png"
-        plot_image(RGB_to_BW(image_rgbf0),vmax= 1.0, savename = picname)
-
-        # Save .npy files
-        npyname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+".npy"
-        np.save (npyname, image_rgbf0)
-
-        time2 = time.time()
-        t = time2-time1
-        print ("Elapsed time: %.1f s \n" % t)
-    plt.close ("all")
-    return
