@@ -13,7 +13,6 @@ from plum import dispatch
 #  WU et al. Optical Engineering 1993 32(8) 1775
 #  Li et al. Journal of Applied Physics 96, 19 (2004)
 
-
 def white_balance(ws, whiteRGB = np.asarray([1.0, 1.0, 1.0]), exposureFactor = 1.0):
     """
     

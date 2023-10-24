@@ -197,10 +197,11 @@ def calculate_intensity (lc: LCGrid, inc_light: LightSource):
     Returns:
         image     : SingleWave class that includes the Intensity map of the specified wavelength
     """
-    #print ("Calculating light intensity")
-    #print ("Refractive indices for wavelength: %d nm " %(wavelength*1000) )
-    #print ("n_o = %.3f, n_e = %.3f, delta n = %.3f  "% (np.mean (n_o), np.mean(n_e), np.mean(n_e-n_o)))
-    #print ("Applying Fresnel equation to calcuculate transmission?", toReflect)
+    
+    # Calculate the refractive indices for the current wavelength
+
+    lc.no, lc.ne = calculate_n(inc_light.wavelength,lc.Sorder,lc.refr_ind)
+
     n2_avg = np.mean((2*lc.no+lc.ne)/3)
     n1 = 1.33
 
@@ -218,8 +219,8 @@ def calculate_intensity (lc: LCGrid, inc_light: LightSource):
 
     for ix in range(Nx):
 
-        if ((ix+1)%(int (Nx/10)) ==0):
-                    print ("%d %%" %((ix+1) // (Nx/10)*10), end = '\t', flush = True)
+        #if ((ix+1)%(int (Nx/10)) ==0):
+                    # print ("%d %%" %((ix+1) // (Nx/10)*10), end = '\t', flush = True)
         for iy in range(Ny):
 
             # Initialize
@@ -236,26 +237,22 @@ def calculate_intensity (lc: LCGrid, inc_light: LightSource):
                 if ( idx[iiz] ): # if the director is non-zero
 
                     director = lc.director[iiz]
-                    director = np.matmul(rot, lc.director[iiz])
+                    director = rot @ lc.director[iiz]
                     if ( director[2] < 0 ):
                         director[2] *= -1.0 # make it point in positive z
 
                     beta = np.arccos(director[2]) # angle between n_i and k_0
-                    gamma1 = np.arctan2(director[1],director[0]) # angle between x and the projection of n_i
+                    gamma1 = np.arctan2(director[1],director[0])    # angle between x and the projection of n_i
                     gamma = gamma1 - gamma0
                     #gamma = gamma0 - gamma1  # the gamma1 and the gamma0 are the alphas in the paper
                     #gamma0 = gamma1 # take this to be the next "incident light polarization"
 
-                    if (hasS == False):
-                        phio = 2*np.pi*lc.no*lc.grid.dx[2]/inc_light.wavelength # To calculate the rotation matrix
-                        denom = [lc.no*np.sin(beta), lc.ne*np.cos(beta)]
-                        nebeta = lc.no*lc.ne/np.linalg.norm(denom) #beta is gamma in the paper
-                    else:
-                        phio = 2*np.pi*lc.no[iiz]*lc.grid.dx[2]/inc_light.wavelength
-                        denom = [lc.no[iiz]*np.sin(beta), lc.ne[iiz]*np.cos(beta)]
-                        nebeta = lc.no[iiz]*lc.ne[iiz]/np.linalg.norm(denom) #beta is gamma in the paper
+                
+                    phio = 2*np.pi*lc.no[iiz]*lc.grid.dx[2]/inc_light.wavelength
+                    denom = [lc.no[iiz]*np.sin(beta), lc.ne[iiz]*np.cos(beta)]
+                    nebeta = lc.no[iiz]*lc.ne[iiz]/np.linalg.norm(denom) #beta is gamma in the paper
 
-                    phie = 2*np.pi*nebeta*lc.grid.dx[2]/inc_light.waves
+                    phie = 2*np.pi*nebeta*lc.grid.dx[2]/inc_light.wavelength
 
                     Sr = retardation(gamma, phio-phie )
 
@@ -265,9 +262,11 @@ def calculate_intensity (lc: LCGrid, inc_light: LightSource):
 
             ep = np.asarray([1,0], dtype = complex)
             ea = np.asarray([0,1], dtype = complex)
-            res = np.matmul (ea, np.matmul (Pold, ep))
+            res = ea @(Pold @ ep)
             image.Intensity[ix][iy] = np.real (np.conj(res)*res)
 
+
+            ## Selecting different reflection modes needs the definition of the geometry and surface nodes
             if (iiz2>0 and inc_light.reflect_mode == "Fresnel"):
                 xo, yo, zo = lc.grid.xyz[iiz2]
                 theta_i = np.arcsin(np.sqrt ((xo**2 + yo**2)/(xo**2+yo**2+zo**2)))

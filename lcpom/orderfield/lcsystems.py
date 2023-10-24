@@ -161,42 +161,46 @@ class LCGrid:
         self.Sorder = order.scalar
         self.director = order.director
         self.material = material
-        self.no : np.ndarray
-        self.ne : np.ndarray  
-     
-    @dispatch
-    def calculate_n(self, lamb: float):
-        """
-        Calculates the refractive indices (n_o, n_e) of 5CB for the wavelength lamb
-        """
-        l1 = 0.210; l2 = 0.282
-        n0e = 0.455; g1e = 2.325; g2e = 1.397
-        n0o = 0.414; g1o = 1.352; g2o = 0.470
+        self.refr_ind : Refract_Ind(material)
+        self.no: np.ndarray
+        self.ne: np.ndarray
 
-        self.ne = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
-        self.no = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
-
-
-    @dispatch
-    def calculate_n(self, lamb: float, s: np.ndarray):
-        """
-        Calculates the refractive indices (n_o,n_e) of 5CB for the wavelength lamb
-        and order parameter s
-        """
-        l1 = 0.210
-        l2 = 0.282
-        n0e = 0.455; g1e = 2.325; g2e = 1.397
-        n0o = 0.414; g1o = 1.352; g2o = 0.470
-
-        n_e = 1 + n0e + g1e*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2e*(lamb**2 * l2**2)/(lamb**2-l2**2)
-        n_o = 1 + n0o + g1o*(lamb**2 * l1**2)/(lamb**2-l1**2) + g2o*(lamb**2 * l2**2)/(lamb**2-l2**2)
-
-        S0 = 0.68
-        delta_n = (n_e - n_o)/S0
-        abt = (n_e + 2*n_o)/3.0
-        self.ne = abt + 2/3*s*delta_n
-        self.no = abt - 1/3*s*delta_n
         
+class Refract_Ind:
+
+    def __init__(
+            self,
+            material: str = "5CB"
+    ):
+        
+        ## These parameters are to be read of a dictionary depending on the material input. 
+        ## Don't know how to do that.
+        self.l1 = 0.210
+        self.l2 = 0.282
+        self.n0e = 0.455
+        self.n0o = 0.414
+        self.g1e = 2.325
+        self.g2e = 1.397
+        self.g1o = 1.352
+        self.g2o = 0.470
+
+        
+def calculate_n(lam: float, S: np.array, p: Refract_Ind):
+    """
+    Calculates the refractive indices (n_o,n_e) of the specified material in Refract_Ind for the wavelength lam
+    and order parameter S
+    """
+ 
+    n_e = 1 + p.n0e + p.g1e*(lam**2 * p.l1**2)/(lam**2-p.l1**2) + p.g2e*(lam**2 * p.l2**2)/(lam**2-p.l2**2)
+    n_o = 1 + p.n0o + p.g1o*(lam**2 * p.l1**2)/(lam**2-p.l1**2) + p.g2o*(lam**2 * p.l2**2)/(lam**2-p.l2**2)
+
+    S0 = 0.68
+    delta_n = (n_e - n_o)/S0
+    abt = (n_e + 2*n_o)/3.0
+    ne = abt + 2/3*S*delta_n
+    no = abt - 1/3*S*delta_n
+
+    return no, ne
 
 def make_grid(L: np.ndarray, dx: np.ndarray ):
     """
