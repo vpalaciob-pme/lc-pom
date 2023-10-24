@@ -39,8 +39,7 @@ class SingleWave(POMImage):
         POMImage for single wavelength calculation
         """
         self.nlayers = 1
-            
-    
+                
 class MultiWave(POMImage):
     def __init__(self):
         """
