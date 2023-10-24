@@ -249,13 +249,13 @@ def interp_frame (system: LCSystem, delta: float = 0.1 ):
 
     # Interpolate data onto finer grid
     centroid = np.mean (system.coords,axis=1)
-    nn = interpolate (grid.xyz, system.coords, system.director, method = 'thin_plate_spline')
+    nn = interpolate(system.coords, system.director, grid.xyz, method = 'thin_plate_spline')
     nn = normalize_vector(nn)
     idx = np.where (ellip1(grid.xyz.T, system.L_box, centroid)>0)    # Finds nodes where LC does not exist
     nn[idx] = 0
 
 
-    ss = interpolate (grid.xyz, system.coords, system.Sorder, method = 'thin_plate_spline')
+    ss = interpolate(system.coords, system.Sorder, grid.xyz, method = 'thin_plate_spline')
     ss[idx] = 0
 
     # Save the interpolated director field from directory2
@@ -270,7 +270,7 @@ def interp_frame (system: LCSystem, delta: float = 0.1 ):
     return LCinfo
 
 
-def interpolate (x0, x1, y0, method = 'thin_plate'):
+def interpolate (x0, y0, x1, method = 'thin_plate'):
 
     interp = RBFInterpolator(x0, y0, kernel = method, smoothing = 0.1, neighbors = 12)
     y1 = interp (x1)
