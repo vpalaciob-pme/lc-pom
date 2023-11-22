@@ -48,20 +48,24 @@ class MultiWave(POMImage):
     
 class LightSource:
 
-    def __init__(self, spectrum: np.ndarray, reflect: str, source: str):
+    def __init__(self, spectrum: np.ndarray = np.arange(.400, .681, .014), alpha: flat = 90.0, exposure: float = 1.0, reflect: str, source: str):
         """
         Characteristics of the incident light.
         Spectrum: an array with the wavelengths of the incident light
+        Alpha: Polarizer angle
+        Exposure: exposure factor
         Reflect: selects reflection attenuation mode: None, Fresnel, Empirical. Only valid for droplets
         Source:  specifies if the light is treated as uniform white light, LED lamp, or Halogen lamp
         """
         
         self.spectrum = spectrum
         self.reflect_mode = reflect
+        self.angle= alpha*np.pi/180.0
         self.source = source
+        self.exposure = exposure
         self.wavelength : float
     
-class LED(LightSource):
+class LabLamp(LightSource):
         
         def __init__(self):
 
@@ -70,10 +74,18 @@ class LED(LightSource):
             spectrum of the microscope lamp fitted with several gaussian functions
             """
         
-            self.source = "LED"
+            
 
-            self.y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
         
+        def led_intensity(x):
+            """
+            Calculates the intensity of the LED Lamp for a given wavelength x.
+            """
+            y=0.15*gaussian (x, 0.45, 0.01)+0.41*gaussian (x, 0.525, 0.05)+0.37*gaussian (x, 0.625, 0.05) + 0.07*gaussian (x, 0.75, 0.05)
+            
+            return y
+        
+
 
 def light_xyz(self,wavelengths):
     """
@@ -140,106 +152,33 @@ def Fresnel(theta_i, n1, n2 ):
 #
 
 # # Let's start to make POM images!
-
-
-"""
-frame input types:
-1. int
-    that corresponds to a frame in an animation
-2. string
-    that corresponds to the file name of the interpolated director field
-"""
-def POMFrame (frame, mode, angle, wl = None, exposureFactor = 1.0,toReflect1 = True):
-
-    print ("="*100)
-    print ("Calculation started")
-    print ("="*100)
-    time1 = time.time()
-    directory1 = "./Interpolated_Director_Field/"
-    directory2 = "./Images/"
-    angle = angle*np.pi/180.0
-
-    angle1 = np.copy(angle)
-    exposureFactor1 = np.copy(exposureFactor)
-    # Load
-    if (type(frame) == int):
-        fname = directory1+ "Frame-"+str(frame)+"-interpolated-directors.txt"
-        info = directory2+"Frame-"+str(frame)
-    elif (type(frame) == str):
-        fname = directory1+frame
-        n2 = path.splitext(frame)[0]
-        info = directory2+n2
-    else:
-        print ("Error: wrong filename")
-        return
+@dispatch
+def POMFrame (pom:SingleWave, lcfield: LCGrid, light: LightSource ):
 
     # Calculate images according to mode
-    if (mode == "Single-wavelength"):
+    pom = calculate_intensity(lcfield,light)
 
-        #wave = wl
-        image = n_to_intensity(fname, wavelength = wl, alpha_p = angle1, toReflect = toReflect1)
-        #image = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
+    # And use plotters here
+    
 
-        ## Plot it
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+".png"
-        plot_image(image,vmax = 1.0, savename = picname)
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-lambda-"+str(int(np.mean(wl)*1000))+"Hist.png"
-        plot_hist (image,savename = picname)
+@dispatch
+def POMFrame(pom:MultiWave, lcfield: LCGrid, light:LightSource):
 
-    if (mode == "Simp-color"):
-        print ("Naive RGB image calculations")
-        # Calculate RGB images
-        image_rgb = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
-        # RGB channel plots
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-channels.png"
-        plot_image_rgb(image_rgb,vmax = 1.0,savename = picname)
-        # RGB histograms
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB-hist.png"
-        plot_hist_rgb (image_rgb, savename=picname)
-        # RGB images
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-SimpRGB.png"
-        plot_image(image_rgb,vmax = 1.0,savename = picname)
+    for i, wl in enumerate(light.spectrum):
+        light.wavelength = wl
+        pom[i] = calculate_intensity(lcfield,light)
 
-    if (mode == "Full-color"):
+    # Calculate color map with the weights from light
 
-        print ("RGB image from multiple wavelengths")
+    r = res[0]
+    g = res[1]
+    b = res[2]
 
-        # Initialize continuous wavelengths
-        if wl is None:
-            print ("Default wavelengths")
-            wl = np.arange(.400, .681, .014)
+    RGBchannels = np.asarray([r.T,g.T,b.T]).T
+    
+    # Use plotters here
 
-
-         # Calculate images
-        image_rgbf0 = n_to_rgb_full (fname,wavelengths = wl, angle= angle1, exposureFactor = exposureFactor1, toReflect = toReflect1)
-
-        # Plot RGB images
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB.png"
-        plot_image(image_rgbf0 ,vmax = 1.0, savename = picname)
-
-        # RGB channel plots
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-channels.png"
-        plot_image_rgb(image_rgbf0,vmax = 1.0,savename = picname)
-
-        # Plot histograms
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB-Hist.png"
-        plot_hist_rgb(image_rgbf0, savename = picname)
-
-        # Plot BW
-        picname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+"-BW.png"
-        plot_image(RGB_to_BW(image_rgbf0),vmax= 1.0, savename = picname)
-
-        # Save .npy files
-        npyname = info+"-angle-"+str(int(180*angle1/np.pi)) +"-FullRGB"+".npy"
-        np.save (npyname, image_rgbf0)
-
-        time2 = time.time()
-        t = time2-time1
-        print ("Elapsed time: %.1f s \n" % t)
-    plt.close ("all")
-    return
-
-
+  
 def rotation(alpha_p: float):
     """
     Jones matrix operator to rotate light around the optical axis.
@@ -376,29 +315,6 @@ def calculate_intensity (lc: LCGrid, inc_light: LightSource):
                 image.Intensity[ix][iy] = np.real (np.conj(res)*res)*trans*trans
 
     return image
-
-
-def n_to_intensity(fname, wavelength, alpha_p, toReflect = True):
-
-    wavelength = np.mean(wavelength)
-    #Load data
-    X = np.loadtxt(fname,dtype = np.float32);
-
-    # If X has a 7 entries, then use the S parameters for calculating
-    hasS = (X.shape[1] == 7)
-
-    # Get refractive indices
-    if (hasS):
-        print ("Max and Mean of order parameter are: %.3f, %.3f" % (X[0,6],X[1,6]))
-        ss = X[2:,6]
-        n_o, n_e = calc_n_s (wavelength, ss)
-    else:
-        print ("No S data available, assume T= 25 Celsius")
-        n_o, n_e = calc_n (wavelength)
-
-    # Calculate image
-    tmp =  calc_image (X, alpha_p = alpha_p, n_o = n_o, n_e = n_e, wavelength = wavelength, toReflect = toReflect)
-    return tmp
 
 
 
