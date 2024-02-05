@@ -45,10 +45,11 @@ class MultiWave(POMImage):
         """
         POMImage for multiple wavelength calculation 
         """
+        
     
 class LightSource:
 
-    def __init__(self, spectrum: np.ndarray = np.arange(.400, .681, .014), alpha: flat = 90.0, exposure: float = 1.0, reflect: str, source: str):
+    def __init__(self, spectrum: np.ndarray = np.arange(.400, .681, .014), alpha: float = 90.0, exposure: float = 1.0, reflect: str, source: str):
         """
         Characteristics of the incident light.
         Spectrum: an array with the wavelengths of the incident light
@@ -64,6 +65,50 @@ class LightSource:
         self.source = source
         self.exposure = exposure
         self.wavelength : float
+
+    
+
+    def light_xyz(self):
+        """
+        
+        """
+        lx = []; ly=[]; lz=[]
+        wv = []
+        dl = wavelengths[1]-wavelengths[0]
+        
+        for i in range (0, len (wavelengths)-1):
+            start = wavelengths[i]
+            end = wavelengths[i+1]
+            wv.append (start + 0.5*dl)
+            x = np.linspace (start, end, 20)
+            light = self.intensity
+            res = cie_xyz(x)
+            res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
+            lx.append(simpson (res[:,0],x))
+            ly.append(simpson (res[:,1],x))
+            lz.append(simpson (res[:,2],x))
+        
+        lx = np.asarray(lx)
+        ly = np.asarray(ly)
+        lz = np.asarray(lz)
+        wv = np.asarray(wv)
+        res = np.vstack([lx,ly,lz]).T
+        
+        return wv, res
+
+    def cie_xyz(wv):
+        """
+        
+        """
+        waves = np.copy(wv)
+        if (np.mean(wv))<10:
+            #print("rescale units um to nm")
+            waves*=1000
+        wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
+        wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
+        wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
+        res = np.asarray([wx, wy, wz]).T
+        return res
     
 class LabLamp(LightSource):
         
@@ -86,48 +131,6 @@ class LabLamp(LightSource):
             return y
         
 
-
-def light_xyz(self,wavelengths):
-    """
-    
-    """
-    lx = []; ly=[]; lz=[]
-    wv = []
-    dl = wavelengths[1]-wavelengths[0]
-    
-    for i in range (0, len (wavelengths)-1):
-        start = wavelengths[i]
-        end = wavelengths[i+1]
-        wv.append (start + 0.5*dl)
-        x = np.linspace (start, end, 20)
-        light = LED(x)
-        res = cie_xyz(x)
-        res[:,0]*= light;res[:,1]*= light;res[:,2]*= light
-        lx.append(simpson (res[:,0],x))
-        ly.append(simpson (res[:,1],x))
-        lz.append(simpson (res[:,2],x))
-    
-    lx = np.asarray(lx)
-    ly = np.asarray(ly)
-    lz = np.asarray(lz)
-    wv = np.asarray(wv)
-    res = np.vstack([lx,ly,lz]).T
-    
-    return wv, res
-
-def cie_xyz(wv):
-    """
-    
-    """
-    waves = np.copy(wv)
-    if (np.mean(wv))<10:
-        #print("rescale units um to nm")
-        waves*=1000
-    wx = 1.056*g_p(waves, 599.8, 37.9, 31.0)+0.362*g_p(waves, 442.0, 16.0, 26.7)-0.065*g_p(waves, 501.1, 20.4, 26.2)
-    wy = 0.821*g_p(waves, 568.8, 46.9, 40.5)+0.286*g_p(waves, 530.9, 16.3, 31.1)
-    wz = 1.217*g_p(waves, 437.0, 11.8, 36.0)+0.681*g_p(waves, 459.0, 26.0, 13.8)
-    res = np.asarray([wx, wy, wz]).T
-    return res
 
 def Fresnel(theta_i, n1, n2 ):
     """"
@@ -175,7 +178,7 @@ def POMFrame(pom:MultiWave, lcfield: LCGrid, light:LightSource):
     b = res[2]
 
     RGBchannels = np.asarray([r.T,g.T,b.T]).T
-    
+
     # Use plotters here
 
   
