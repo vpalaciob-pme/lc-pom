@@ -66,19 +66,17 @@ class LightSource:
         self.exposure = exposure
         self.wavelength : float
 
-    
-
     def light_xyz(self):
         """
         
         """
         lx = []; ly=[]; lz=[]
         wv = []
-        dl = wavelengths[1]-wavelengths[0]
+        dl = self.spectrum[1]-self.spectrum[0]
         
-        for i in range (0, len (wavelengths)-1):
-            start = wavelengths[i]
-            end = wavelengths[i+1]
+        for i in range (0, len (self.spectrum)-1):
+            start = self.spectrum[i]
+            end = self.spectrum[i+1]
             wv.append (start + 0.5*dl)
             x = np.linspace (start, end, 20)
             light = self.intensity
