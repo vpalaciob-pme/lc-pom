@@ -1,0 +1,85 @@
+font.family : Arial
+legend.fontsize : 22
+axes.labelsize : 24
+xtick.labelsize: 22
+ytick.labelsize: 22
+axes.titlesize: 26
+
+
+
+#lines
+lines.linewidth: 4
+
+#Lay_out
+
+figure.figsize:8,8
+figure.facecolor:  white
+figure.dpi: 80
+savefig.facecolor: white
+savefig.dpi: 300
+
+
+#figure.subplot.left:   0.12  # the left side of the subplots of the figure
+#figure.subplot.right:  0.88    # the right side of the subplots of the figure
+#figure.subplot.bottom: 0.12   # the bottom of the subplots of the figure
+#figure.subplot.top:    0.88   # the top of the subplots of the figure
+
+figure.subplot.left:   0.12  # the left side of the subplots of the figure
+figure.subplot.right:  0.98    # the right side of the subplots of the figure
+figure.subplot.bottom: 0.12   # the bottom of the subplots of the figure
+figure.subplot.top:    0.93   # the top of the subplots of the figure
+
+#figure.subplot.wspace: 0.0    # the amount of width reserved for space between subplots,
+                               # expressed as a fraction of the average axis width
+#figure.subplot.hspace: 0.0    # the amount of height reserved for space between subplots,
+                               # expressed as a fraction of the average axis height
+
+
+#grid
+grid.linewidth: 2.0
+axes.linewidth: 2.0
+
+# Marker
+lines.markerfacecolor: (1,1,1,1)
+lines.markersize: 10.0
+lines.markeredgewidth:2.0
+markers.fillstyle:full
+errorbar.capsize: 4.0
+
+# Ticks
+xtick.direction: in
+xtick.alignment: left
+xaxis.labellocation: center
+xtick.labeltop: False
+xtick.major.bottom: True
+xtick.major.pad: 3.5
+xtick.major.size: 8
+xtick.major.top: True
+xtick.major.width: 1.8
+xtick.minor.bottom: True
+xtick.minor.pad: 3.4
+xtick.minor.size: 4
+xtick.minor.top: True
+xtick.minor.visible: False
+xtick.minor.width: 1.2
+xtick.top: False
+ytick.alignment: baseline
+yaxis.labellocation: center
+ytick.color: black
+ytick.direction: in
+ytick.labelleft: True
+ytick.labelright: False
+#ytick.labelsize: medium
+ytick.left: True
+ytick.major.left: True
+ytick.major.pad: 3.5
+ytick.major.right: True
+ytick.major.size: 8
+ytick.major.width: 1.8
+ytick.minor.left: True
+ytick.minor.pad: 3.4
+ytick.minor.right: True
+ytick.minor.size: 4.0
+ytick.minor.visible: False
+ytick.minor.width: 1.2
+ytick.right: False

@@ -1,23 +1,14 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 import re
 
 # Optional style sheet for beautiful plots
 plt.style.use('./large_plot.mplstyle')
-#plt.style.use('C:/Users/chenc/Documents/Python_plot_formats/large_plot.mplstyle')
+
 from matplotlib import cm
 import matplotlib
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
-
-
-# In[58]:
 
 
 def vtk_to_coord(inputfile):
@@ -57,9 +48,6 @@ def vtk_to_coord(inputfile):
 
 
 
-# In[60]:
-
-
 def vtk_to_dir(inputfile, nPoints):
 
     x = re.split (r"\.", inputfile)
@@ -95,12 +83,9 @@ def vtk_to_dir(inputfile, nPoints):
     return nPoints
 
 
-
-# In[17]:
 if __name__ == "__main__":
 
     directory2 = "./Original_Director_Field/"
-
 
     frames= np.loadtxt("tmp-frames.txt", dtype = np.int32)
 
