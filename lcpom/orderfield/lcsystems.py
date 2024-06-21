@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import eig
 from plum import dispatch
 from scipy.interpolate import RBFInterpolator
-from scipy.spatial.transform import Rotate
+from scipy.spatial.transform import Rotation
 
 # Local imports
 from lcpom.utils.tools import normalize
@@ -17,12 +17,14 @@ class GridInfo:
     shape: tuple
     size: int
     spacing: np.ndarray
+    upper: np.ndarray
 
     def __init__(self, length, shape, padding: float = 0.0):
-        self.length = length * (1 + padding)
+        self.length = np.asarray(length) * (1 + padding)
         self.shape = shape
         self.size = np.prod(shape)
         self.spacing = np.asarray([L / n for L, n in zip(length, shape)])
+        self.upper = (self.length - self.spacing) / 2
 
 
 @dataclass
@@ -40,7 +42,7 @@ class Grid:
 
 @dispatch
 def make_grid(info: GridInfo, dtype=np.float32):
-    lx, ly, lz = info.length / 2
+    lx, ly, lz = info.upper
     nx, ny, nz = info.shape
 
     x = np.linspace(-lx, lx, nx)
@@ -54,10 +56,13 @@ def make_grid(info: GridInfo, dtype=np.float32):
 
 @dispatch
 def getindex(info: GridInfo, centers: type(None), *indices):
-    lx, ly, lz = info.length
+    lx, ly, lz = info.upper
     dx, dy, dz = info.spacing
+    nx, ny, nz = info.shape
     i, j, k = flatten(*indices)
-    return np.array([-lx / 2 + i * dx, -ly / 2 + j * dy, -lz / 2 + k * dz])
+    if not (-nx <= i < nx and -ny <= j < ny and -nz <= k < nz):
+        raise IndexError(f"indices {i, j, k} out of bounds")
+    return np.array([-lx + (i % nx) * dx, -ly + (j % ny) * dy, -lz + (k % nz) * dz])
 
 
 @dispatch
@@ -66,12 +71,12 @@ def getindex(info: GridInfo, centers, *indices):
 
 
 @dispatch
-def flatten(*indices):
+def flatten(indices: tuple):
     return indices
 
 
 @dispatch
-def flatten(indices: tuple):
+def flatten(*indices):
     return indices
 
 
@@ -141,27 +146,19 @@ PARAMS_5CB = ThreeBandModelParams(
 )
 
 
+@dataclass
 class LCGrid:
-    @dispatch
-    def __init__(
-        self,
-        grid: Grid,
-        order_parameter,
-        director,
-        interface,
-        normal_z,
-        material_params: MaterialParams = PARAMS_5CB,
-    ):
-        """
-        LCGrid is a class that handles the LC information once scalar and director order
-        fields are interpolated onto grid
-        """
-        self.grid = grid
-        self.S = order_parameter
-        self.director = director
-        self.interface = interface
-        self.normal_z = normal_z
-        self.material_params = material_params
+    """
+    LCGrid is a class that handles the LC information once scalar and director order
+    fields are interpolated onto grid
+    """
+
+    grid: Grid
+    order_parameter: np.ndarray
+    director: np.ndarray
+    interface: np.ndarray
+    normal_z: np.ndarray
+    material_params: MaterialParams = PARAMS_5CB
 
 
 class RefractiveIndicesUpdater:
@@ -322,6 +319,13 @@ def write_txt_s(rr, nn, ss, consts0, l_box, info, directory2):
     return
 
 
+def rotate(coords, directors, angles):
+    R = Rotation.from_euler("xyz", angles, degrees=True).as_matrix()
+    coords = (R @ coords.T).T
+    directors = (R @ directors.T).T
+    return coords, directors
+
+
 def read_rotate(fname, scaling=1.0, euler_angles=np.asarray([0, 0, 0])):
     # Read original director field from directory1
 
@@ -365,7 +369,7 @@ def read_rotate(fname, scaling=1.0, euler_angles=np.asarray([0, 0, 0])):
             "Rotation around x, y, z in order by %.2f, %.2f, %.2f degrees"
             % (euler_angles[0], euler_angles[1], euler_angles[2])
         )
-        coords, directors = Rotate(coords, directors, euler_angles)
+        coords, directors = rotate(coords, directors, euler_angles)
 
     # Correct signs
     print("Correct signs of original director")
