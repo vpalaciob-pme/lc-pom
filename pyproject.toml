@@ -43,7 +43,8 @@ dependencies = [
     'matplotlib',
     'scikit-learn',
     'scipy>=1.9.3',
-    'click'
+    'click',
+    'plum-dispatch'
 ]
 
 [project.optional-dependencies]

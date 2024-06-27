@@ -8,7 +8,7 @@ __title__ = "lcpom"
 __name__ = "lcpom"
 __author__='Chuqiao Chen (Elise), Viviana Palacio-Betancur, Pablo Zubieta, Prof. Juan de Pablo'
 __license__ = "MIT"
-__copyright__ = "Copyright (C) 2023, de Pablo Lab, Prtizker School of Molecular Engineering, University of Chicago."
+__copyright__ = "Copyright (C) 2023-Present, de Pablo Lab, Prtizker School of Molecular Engineering, University of Chicago."
 __version__ = '0.0.1'
 
 from .pom import *

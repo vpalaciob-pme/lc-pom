@@ -5,21 +5,23 @@ LC-POM
 
 
 
-.. note::
+
+.. attention::
      This project is under active development.
 
-
-Chick out the :doc:`usage` section for learning how to use this package, including the :ref:`input<input>` files that are recommended. 
-
-
-Indices and tables
+==================
+Documentation
 ==================
 
-
 .. toctree::
-    :maxdepth: 2
-
-    usage
+    :titlesonly:
+    
+    about
+    approach
+    userguide
+    examples
+    publications
+    faq
     api
-    setuptools
-    buildanduploadsphinx
+    glossary
+
