@@ -1,3 +1,5 @@
+Glossary
+=========
 .. glossary::
 
     LCPOM

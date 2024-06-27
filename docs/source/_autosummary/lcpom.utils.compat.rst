@@ -1,4 +1,4 @@
-lcpom.utils.compat
+﻿lcpom.utils.compat
 ==================
 
 .. automodule:: lcpom.utils.compat
@@ -8,12 +8,6 @@ lcpom.utils.compat
    
 
    
-   
-   .. rubric:: Functions
-
-   .. autosummary::
-   
-      pairwise
    
    
 

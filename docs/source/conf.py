@@ -90,7 +90,7 @@ html_theme_options = {
             "class": "fa-brands fa-solid fa-github fa-lg",
         },
     ],
-    "sidebar_hide_name": False,
+    "sidebar_hide_name": True,
 }
 
 

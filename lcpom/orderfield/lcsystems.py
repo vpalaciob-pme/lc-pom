@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
@@ -158,7 +158,7 @@ class LCGrid:
     director: np.ndarray
     interface: np.ndarray
     normal_z: np.ndarray
-    material_params: MaterialParams = PARAMS_5CB
+    material_params: MaterialParams = field(default_factory=PARAMS_5CB)
 
 
 class RefractiveIndicesUpdater:
