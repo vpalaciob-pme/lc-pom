@@ -11,8 +11,35 @@ from scipy.spatial.transform import Rotation
 from lcpom.utils.tools import normalize
 
 
+
 @dataclass
 class GridInfo:
+    """
+    Stores information about a grid.
+
+    Attributes
+    ----------
+    length : np.ndarray
+        Length of each dimension of the grid.
+    shape : tuple
+        Shape (dimensions) of the grid.
+    size : int
+        Total number of points in the grid.
+    spacing : np.ndarray
+        Spacing between grid points in each dimension.
+    upper : np.ndarray
+        Upper bounds of the grid.
+
+    Parameters
+    ----------
+    length : np.ndarray
+        Length of each dimension of the grid.
+    shape : tuple
+        Shape (dimensions) of the grid.
+    padding : float, optional
+        Padding factor applied to the length of the grid (default is 0.0).
+    """
+
     length: np.ndarray
     shape: tuple
     size: int
@@ -29,6 +56,26 @@ class GridInfo:
 
 @dataclass
 class Grid:
+    """
+    Represents a grid with associated grid information.
+
+    Attributes
+    ----------
+    info : GridInfo
+        Information about the grid.
+    centers : Optional[np.ndarray]
+        Centers of the grid points, if precomputed.
+
+    Parameters
+    ----------
+    length : np.ndarray
+        Length of each dimension of the grid.
+    shape : tuple
+        Shape (dimensions) of the grid.
+    lazy : bool, optional
+        If True, centers are not precomputed (default is True).
+    """
+
     info: GridInfo
     centers: Optional[np.ndarray]
 
@@ -37,11 +84,40 @@ class Grid:
         self.centers = None if lazy else make_grid(self.info)
 
     def __getitem__(self, indices):
+        """
+        Retrieve the grid point at the specified indices.
+
+        Parameters
+        ----------
+        indices : tuple
+            Indices to access the grid point.
+
+        Returns
+        -------
+        np.ndarray
+            Coordinates of the grid point at the specified indices.
+        """
         return getindex(self.info, self.centers, indices)
 
 
 @dispatch
 def make_grid(info: GridInfo, dtype=np.float32):
+    """
+    Create a grid of points based on the provided grid information.
+
+    Parameters
+    ----------
+    info : GridInfo
+        Information about the grid.
+    dtype : type, optional
+        Data type of the grid points (default is np.float32).
+
+    Returns
+    -------
+    np.ndarray
+        Grid points arranged in a 3D array.
+    """
+
     lx, ly, lz = info.upper
     nx, ny, nz = info.shape
 
@@ -56,6 +132,29 @@ def make_grid(info: GridInfo, dtype=np.float32):
 
 @dispatch
 def getindex(info: GridInfo, centers: type(None), *indices):
+    """
+    Retrieve the coordinates of a grid point specified by indices.
+
+    Parameters
+    ----------
+    info : GridInfo
+        Information about the grid.
+    centers : type(None)
+        Centers of the grid points (unused parameter).
+    indices : tuple
+        Indices to access the grid point.
+
+    Returns
+    -------
+    np.ndarray
+        Coordinates of the grid point at the specified indices.
+
+    Raises
+    ------
+    IndexError
+        If indices are out of bounds.
+    """
+
     lx, ly, lz = info.upper
     dx, dy, dz = info.spacing
     nx, ny, nz = info.shape
@@ -67,21 +166,82 @@ def getindex(info: GridInfo, centers: type(None), *indices):
 
 @dispatch
 def getindex(info: GridInfo, centers, *indices):
+    """
+    Retrieve the coordinates of a grid point specified by indices using precomputed centers.
+
+    Parameters
+    ----------
+    info : GridInfo
+        Information about the grid.
+    centers : np.ndarray
+        Centers of the grid points.
+    indices : tuple
+        Indices to access the grid point.
+
+    Returns
+    -------
+    np.ndarray
+        Coordinates of the grid point at the specified indices.
+    """
+
     return centers.__getitem__(*indices)
 
 
 @dispatch
 def flatten(indices: tuple):
+    """
+    Flatten indices into separate components.
+
+    Parameters
+    ----------
+    indices : tuple
+        Indices to flatten.
+
+    Returns
+    -------
+    tuple
+        Flattened indices.
+    """
+
     return indices
 
 
 @dispatch
 def flatten(*indices):
+    """
+    Flatten multiple indices into separate components.
+
+    Parameters
+    ----------
+    indices : tuple
+        Indices to flatten.
+
+    Returns
+    -------
+    tuple
+        Flattened indices.
+    """
+
     return indices
 
-
-# Is this needed anywhere?
+# Is this needed anywhere? -> Yes! For when we define ansatz and other input forms
 class QTensor:
+    """
+    Represents a Q-tensor in a liquid crystal system.
+
+    Attributes
+    ----------
+    v : np.ndarray
+        Array representing the Q-tensor elements.
+
+    Parameters
+    ----------
+    S : float
+        Order parameter of the liquid crystal.
+    n : np.ndarray
+        Director vector of the liquid crystal.
+    """
+
     v: np.ndarray
 
     def __init__(self, S: float, n: np.ndarray):
@@ -94,8 +254,12 @@ class QTensor:
 
     def as_matrix(self):
         """
-        Returns the tensor information as a symmetric and traceless 3x3 matrix.
-        Useful when converting the independent entries of Q onto the tensor form.
+        Returns the Q-tensor as a symmetric and traceless 3x3 matrix.
+
+        Returns
+        -------
+        np.ndarray
+            Symmetric and traceless 3x3 matrix representation of the Q-tensor.
         """
         v = self.v
         return np.array(
@@ -107,8 +271,22 @@ class QTensor:
         )
 
 
-# Is this needed anywhere?
 def order_parameter(tensor: QTensor):
+    """
+    Calculates the order parameter S and director vector n from a Q-tensor.
+
+    Parameters
+    ----------
+    tensor : QTensor
+        Q-tensor of the liquid crystal.
+
+    Returns
+    -------
+    tuple
+        Tuple containing:
+            float : Order parameter S.
+            np.ndarray : Director vector n.
+    """
     Q = tensor.as_matrix()
     vals, vecs = eig(Q)
     i = vals.argmax()
@@ -118,11 +296,37 @@ def order_parameter(tensor: QTensor):
 
 
 class MaterialParams:
+    """
+    Base class for material parameters in liquid crystal models.
+    """
     pass
 
 
 @dataclass
 class ThreeBandModelParams(MaterialParams):
+    """
+    Material parameters for the three-band model in liquid crystal systems.
+
+    Attributes
+    ----------
+    l1 : float
+        Wavelength parameter 1.
+    l2 : float
+        Wavelength parameter 2.
+    n0e : float
+        Extraordinary refractive index offset.
+    n0o : float
+        Ordinary refractive index offset.
+    g1e : float
+        Extraordinary refractive index coefficient 1.
+    g2e : float
+        Extraordinary refractive index coefficient 2.
+    g1o : float
+        Ordinary refractive index coefficient 1.
+    g2o : float
+        Ordinary refractive index coefficient 2.
+    """
+
     l1: float
     l2: float
     n0e: float
@@ -133,7 +337,7 @@ class ThreeBandModelParams(MaterialParams):
     g2o: float
 
 
-# These parameters could be read from a dictionary depending on the material input.
+# Example parameters for the 5CB liquid crystal material
 PARAMS_5CB = ThreeBandModelParams(
     l1=0.210,
     l2=0.282,
@@ -149,8 +353,37 @@ PARAMS_5CB = ThreeBandModelParams(
 @dataclass
 class LCGrid:
     """
-    LCGrid is a class that handles the LC information once scalar and director order
-    fields are interpolated onto grid
+    Represents a grid with interpolated LC (liquid crystal) information.
+
+    Attributes
+    ----------
+    grid : Grid
+        Grid object storing information about the spatial grid.
+    order_parameter : np.ndarray
+        Array of order parameter values.
+    director : np.ndarray
+        Array of director vector components.
+    interface : np.ndarray
+        Array indicating interfaces within the grid.
+    normal_z : np.ndarray
+        Array of normal vectors to interfaces.
+    material_params : MaterialParams
+        Parameters describing the material properties.
+
+    Parameters
+    ----------
+    grid : Grid
+        Grid object storing information about the spatial grid.
+    order_parameter : np.ndarray
+        Array of order parameter values.
+    director : np.ndarray
+        Array of director vector components.
+    interface : np.ndarray
+        Array indicating interfaces within the grid.
+    normal_z : np.ndarray
+        Array of normal vectors to interfaces.
+    material_params : MaterialParams, optional
+        Parameters describing the material properties (default is PARAMS_5CB).
     """
 
     grid: Grid
@@ -158,22 +391,103 @@ class LCGrid:
     director: np.ndarray
     interface: np.ndarray
     normal_z: np.ndarray
-    material_params: MaterialParams = field(default_factory=PARAMS_5CB)
+    material_params: MaterialParams = field(default_factory=lambda: PARAMS_5CB)
 
 
 class RefractiveIndicesUpdater:
+    """
+    Base class for updating refractive indices of liquid crystal systems.
+    """
     pass
 
 
 class OrderParameterIndependant(RefractiveIndicesUpdater):
+    """
+    Updates refractive indices independently of the order parameter S.
+
+    Methods
+    -------
+    update_ns(no, ne, S)
+        Updates and returns refractive indices no and ne.
+
+    Parameters
+    ----------
+    no : float
+        Initial ordinary refractive index.
+    ne : float
+        Initial extraordinary refractive index.
+    S : float
+        Order parameter of the liquid crystal.
+    """
+
     @staticmethod
     def update_ns(no, ne, S):
+        """
+        Updates refractive indices no and ne independently of the order parameter S.
+
+        Parameters
+        ----------
+        no : float
+            Initial ordinary refractive index.
+        ne : float
+            Initial extraordinary refractive index.
+        S : float
+            Order parameter of the liquid crystal.
+
+        Returns
+        -------
+        tuple
+            Tuple containing:
+                float : Updated ordinary refractive index.
+                float : Updated extraordinary refractive index.
+        """
         return no, ne
 
 
 class OrderParameterDependant(RefractiveIndicesUpdater):
+    """
+    Updates refractive indices dependent on the order parameter S.
+
+    Methods
+    -------
+    update_ns(no, ne, S, S0: float = 0.57)
+        Updates and returns refractive indices no and ne.
+
+    Parameters
+    ----------
+    no : float
+        Initial ordinary refractive index.
+    ne : float
+        Initial extraordinary refractive index.
+    S : float
+        Order parameter of the liquid crystal.
+    S0 : float, optional
+        Reference order parameter (default is 0.57).
+    """
+
     @staticmethod
     def update_ns(no, ne, S, S0: float = 0.57):
+        """
+        Updates refractive indices no and ne dependent on the order parameter S.
+
+        Parameters
+        ----------
+        no : float
+            Initial ordinary refractive index.
+        ne : float
+            Initial extraordinary refractive index.
+        S : float
+            Order parameter of the liquid crystal.
+        S0 : float, optional
+            Reference order parameter (default is 0.57).
+
+        Returns
+        -------
+        tuple
+            Tuple containing:
+                float : Updated ordinary refractive index.
+                float : Updated extraordinary refractive index.
+        """
         delta_n = (ne - no) / S0
         n_mean = (ne + 2 * no) / 3
         ne = n_mean + 2 / 3 * S * delta_n
@@ -186,7 +500,22 @@ def refractive_indices(wl: float, p: ThreeBandModelParams):
     """
     Calculates the refractive indices (n_o, n_e) with the three-band model
     parameters `p` at the wavelength `wl` and order parameter `S`.
+
+    Parameters
+    ----------
+    wl : float
+        Wavelength in micrometers.
+    p : ThreeBandModelParams
+        Parameters for the three-band model.
+
+    Returns
+    -------
+    tuple
+        Tuple containing:
+            float : Ordinary refractive index (n_o).
+            float : Extraordinary refractive index (n_e).
     """
+
     lambda_sq = wl**2
     lambda1_sq = p.l1**2
     lambda2_sq = p.l2**2
@@ -199,10 +528,23 @@ def refractive_indices(wl: float, p: ThreeBandModelParams):
 
     return no, ne
 
-
 def interpolate(system: LCGrid, delta: float = 0.1, method="thin_plate_spline"):
     """
-    Interp_frame interpolates the order field data onto a grid with finer resolution
+    Interpolates the order field data onto a grid with finer resolution.
+
+    Parameters
+    ----------
+    system : LCGrid
+        The liquid crystal grid system containing the data to be interpolated.
+    delta : float, optional
+        The grid spacing for the interpolation, by default 0.1.
+    method : str, optional
+        The interpolation method to use, by default "thin_plate_spline".
+
+    Returns
+    -------
+    LCGrid
+        The interpolated liquid crystal grid.
     """
 
     # Make grid according to size of the ellipsoid
@@ -238,6 +580,24 @@ def interpolate(system: LCGrid, delta: float = 0.1, method="thin_plate_spline"):
 
 
 def ellip1(r, L, center):
+    """
+    Calculates the ellipsoid equation for given points.
+
+    Parameters
+    ----------
+    r : array_like
+        Coordinates of the points.
+    L : array_like
+        Lengths of the ellipsoid along each axis.
+    center : array_like
+        Center of the ellipsoid.
+
+    Returns
+    -------
+    ndarray
+        Values of the ellipsoid equation for the given points.
+    """
+
     x = (r[0] - center[0]) * 2 / L[0]
     y = (r[1] - center[1]) * 2 / L[1]
     z = (r[2] - center[2]) * 2 / L[2]
@@ -245,6 +605,25 @@ def ellip1(r, L, center):
 
 
 def write_orig(rr, nn, ss, info, euler_angles, directory1):
+    """
+    Writes the original director field data to a file.
+
+    Parameters
+    ----------
+    rr : array_like
+        Coordinates of the points.
+    nn : array_like
+        Director vectors at the points.
+    ss : array_like
+        Scalar order parameters at the points.
+    info : str
+        Additional information to include in the file header.
+    euler_angles : array_like
+        Euler angles used for rotation.
+    directory1 : str
+        Directory where the file will be saved.
+    """
+
     ss = ss.reshape([len(ss), 1])
     if ss.any() is None:
         X0 = np.hstack([rr, nn, ss])
@@ -261,6 +640,25 @@ def write_orig(rr, nn, ss, info, euler_angles, directory1):
 
 
 def write_txt(rr, nn, consts0, l_box, info, directory2):
+    """
+    Writes the interpolated director field data to a file.
+
+    Parameters
+    ----------
+    rr : array_like
+        Coordinates of the points.
+    nn : array_like
+        Director vectors at the points.
+    consts0 : array_like
+        Grid constants including dimensions and spacings.
+    l_box : array_like
+        Dimensions of the simulation box.
+    info : str
+        Additional information to include in the file header.
+    directory2 : str
+        Directory where the file will be saved.
+    """
+
     [nx, ny, nz, dx, dy, dz] = consts0
     X0 = np.hstack([rr, nn])
     header = "Interpolated director file\n"
@@ -287,12 +685,53 @@ def write_txt(rr, nn, consts0, l_box, info, directory2):
 
 
 def section_info(title, cols, sep="\t", end="\n"):
+    """
+    Formats section information for the file header.
+
+    Parameters
+    ----------
+    title : str
+        Title of the section.
+    cols : str
+        Column names.
+    sep : str, optional
+        Separator for the columns, by default "\t".
+    end : str, optional
+        End of line character, by default "\n".
+
+    Returns
+    -------
+    str
+        Formatted section information.
+    """
+
     if len(title) != 0:
         title += "\n"
     return title + sep.join(cols.split()) + end
 
 
 def write_txt_s(rr, nn, ss, consts0, l_box, info, directory2):
+    """
+    Writes the interpolated director field data and scalar order parameter to a file.
+
+    Parameters
+    ----------
+    rr : array_like
+        Coordinates of the points.
+    nn : array_like
+        Director vectors at the points.
+    ss : array_like
+        Scalar order parameters at the points.
+    consts0 : array_like
+        Grid constants including dimensions and spacings.
+    l_box : array_like
+        Dimensions of the simulation box.
+    info : str
+        Additional information to include in the file header.
+    directory2 : str
+        Directory where the file will be saved.
+    """
+
     [nx, ny, nz, dx, dy, dz] = consts0
     X0 = np.hstack([rr, nn, ss])
     header = "Interpolated director file\n"
@@ -320,6 +759,24 @@ def write_txt_s(rr, nn, ss, consts0, l_box, info, directory2):
 
 
 def rotate(coords, directors, angles):
+    """
+    Rotates the coordinates and directors by the given Euler angles.
+
+    Parameters
+    ----------
+    coords : array_like
+        Coordinates of the points.
+    directors : array_like
+        Director vectors at the points.
+    angles : array_like
+        Euler angles for the rotation.
+
+    Returns
+    -------
+    tuple
+        Rotated coordinates and director vectors.
+    """
+
     R = Rotation.from_euler("xyz", angles, degrees=True).as_matrix()
     coords = (R @ coords.T).T
     directors = (R @ directors.T).T
@@ -327,6 +784,24 @@ def rotate(coords, directors, angles):
 
 
 def read_rotate(fname, scaling=1.0, euler_angles=np.asarray([0, 0, 0])):
+    """
+    Reads and rotates the director field data from a file.
+
+    Parameters
+    ----------
+    fname : str
+        Filename of the input file.
+    scaling : float, optional
+        Scaling factor for the coordinates, by default 1.0.
+    euler_angles : array_like, optional
+        Euler angles for the rotation, by default np.asarray([0, 0, 0]).
+
+    Returns
+    -------
+    tuple
+        Rotated coordinates, director vectors, scalar order parameters, and ellipsoid dimensions.
+    """
+
     # Read original director field from directory1
 
     X = np.loadtxt(fname, dtype=np.float32)
@@ -381,10 +856,24 @@ def read_rotate(fname, scaling=1.0, euler_angles=np.asarray([0, 0, 0])):
 
     return coords, directors, ss0, L
 
+def plot_from_existed(fname_orig, fname_interp, info, scaling=1.0, euler_angles=np.asarray([0, 0, 0])):
+    """
+    Plots the original and interpolated director fields.
 
-def plot_from_existed(
-    fname_orig, fname_interp, info, scaling=1.0, euler_angles=np.asarray([0, 0, 0])
-):
+    Parameters
+    ----------
+    fname_orig : str
+        Filename of the original director field data.
+    fname_interp : str
+        Filename of the interpolated director field data.
+    info : str
+        Additional information for the plot.
+    scaling : float, optional
+        Scaling factor for the coordinates, by default 1.0.
+    euler_angles : array_like, optional
+        Euler angles for the rotation, by default np.asarray([0, 0, 0]).
+    """
+    
     # the original data
     coords, directors, ss0, L = read_rotate(
         fname_orig, scaling=scaling, euler_angles=euler_angles

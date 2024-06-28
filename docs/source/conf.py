@@ -5,7 +5,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
-from setuptools_scm import get_version
+# from setuptools_scm import get_version
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -24,7 +24,7 @@ author = (
 )
 
 # The full version, including alpha/beta/rc tags
-release = version = get_version(root="../..")
+release = version = "0.0.1"
 
 # -- General configuration ---------------------------------------------------
 

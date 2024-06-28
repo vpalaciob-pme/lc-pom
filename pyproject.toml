@@ -44,7 +44,9 @@ dependencies = [
     'scikit-learn',
     'scipy>=1.9.3',
     'click',
-    'plum-dispatch'
+    'plum-dispatch',
+    'setuptools',
+    'setuptools-scm'
 ]
 
 [project.optional-dependencies]

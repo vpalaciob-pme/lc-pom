@@ -16,3 +16,5 @@
    modules-pom
    modules-light
    modules-color
+   modules-optics
+   modules-utils
