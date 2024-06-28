@@ -1,3 +1,8 @@
-===============
 Examples
+********
+
+Gallery
+=======
+
+Sample scripts
 ===============

@@ -1,10 +1,7 @@
 API
 ===
 
-     
-.. autosummary::
-    :toctree: _autosummary
-    :recursive: 
+.. toctree::
+   :maxdepth: 3
 
-    lcpom
-    examples
+   modules

@@ -1,16 +1,17 @@
-
-About LCPOM
-=============
-
+Scientific Background
+*********************
 
 
+Basics of Liquid Crystals
+=========================
+
+Principles of Polarized Optical Microscopy (:term:`POM`)
+===========================================================
 
 
-
-Even if you don't read manuals
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+Principles of Color science
+===========================
 
 
-Contact
-^^^^^^^^^^^
+How does :term:`LCPOM` utilizes these principles?
+=================================================

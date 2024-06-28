@@ -5,27 +5,26 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
-
+from setuptools_scm import get_version
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../lcpom'))  # Source code dir relative to this file
+sys.path.insert(0, os.path.abspath('../..'))  # Source code dir relative to this file
 
 
 # -- Project information -----------------------------------------------------
 
-project = "LC-POM"
+project = "LCPOM"
 copyright = "2023-present, LCPOM developers, i.e. Chuqiao Chen (Elise), Viviana Palacio-Betancur, Pablo Zubieta"
 author = (
     "LCPOM developers: Chuqiao Chen (Elise), Viviana Palacio-Betancur, Pablo Zubieta"
 )
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
-version = "0.1.0"
+release = version = get_version(root="../..")
 
 # -- General configuration ---------------------------------------------------
 
@@ -43,6 +42,9 @@ extensions = [
 ]
 
 autosummary_generate = True
+
+autodoc_inherit_docstrings = False
+autodoc_member_order = "bysource"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
