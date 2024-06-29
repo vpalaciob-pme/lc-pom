@@ -164,7 +164,7 @@ def pom_image(lc: LCGrid, wl: float, Rp: np.ndarray, mode, update_ns, eps=1e-3):
             if np.linalg.norm(nn) < eps:
                 continue
 
-            no, ne = update_ns(no, ne, lc.S[i, j, k])
+            no, ne = update_ns(no, ne, lc.order_parameter[i, j, k])
             alpha_0, alpha, gamma = voxel_angles(Rp @ nn, alpha_0)
             Theta = voxel_transform(gamma, alpha, no, ne)
             # In-place alternative to P = Theta @ P

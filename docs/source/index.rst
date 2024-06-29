@@ -1,4 +1,4 @@
-LC-POM
+LCPOM
 ******
 
 Liquid crystalline systems exhibit a rich 

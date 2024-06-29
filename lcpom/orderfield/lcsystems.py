@@ -20,9 +20,9 @@ class GridInfo:
     Attributes
     ----------
     length : np.ndarray
-        Length of each dimension of the grid.
+        Dimensions of the box that encloses the LC system (Lx,Ly,Lz)
     shape : tuple
-        Shape (dimensions) of the grid.
+        Shape of the coordinates array. (nx, ny, nz)
     size : int
         Total number of points in the grid.
     spacing : np.ndarray
@@ -33,9 +33,9 @@ class GridInfo:
     Parameters
     ----------
     length : np.ndarray
-        Length of each dimension of the grid.
+        Dimensions of the box that encloses the LC system (Lx,Ly,Lz)
     shape : tuple
-        Shape (dimensions) of the grid.
+        Shape of the coordinates array. (nx, ny, nz)
     padding : float, optional
         Padding factor applied to the length of the grid (default is 0.0).
     """
@@ -69,9 +69,9 @@ class Grid:
     Parameters
     ----------
     length : np.ndarray
-        Length of each dimension of the grid.
+        Dimensions of the box that encloses the LC system (Lx,Ly,Lz)
     shape : tuple
-        Shape (dimensions) of the grid.
+        Shape of the coordinates array. (nx, ny, nz)
     lazy : bool, optional
         If True, centers are not precomputed (default is True).
     """
@@ -355,31 +355,16 @@ class LCGrid:
     """
     Represents a grid with interpolated LC (liquid crystal) information.
 
-    Attributes
-    ----------
-    grid : Grid
-        Grid object storing information about the spatial grid.
-    order_parameter : np.ndarray
-        Array of order parameter values.
-    director : np.ndarray
-        Array of director vector components.
-    interface : np.ndarray
-        Array indicating interfaces within the grid.
-    normal_z : np.ndarray
-        Array of normal vectors to interfaces.
-    material_params : MaterialParams
-        Parameters describing the material properties.
-
     Parameters
     ----------
     grid : Grid
         Grid object storing information about the spatial grid.
     order_parameter : np.ndarray
-        Array of order parameter values.
+        Array of order parameter values. Size of the array should match those of grid: grid.info.shape 
     director : np.ndarray
-        Array of director vector components.
+        Array of director vector components. Size of the array: (grid.info.size,3) 
     interface : np.ndarray
-        Array indicating interfaces within the grid.
+        Array indicating interfaces within the grid. 1 for nodes representing LC and 0 for the rest
     normal_z : np.ndarray
         Array of normal vectors to interfaces.
     material_params : MaterialParams, optional
