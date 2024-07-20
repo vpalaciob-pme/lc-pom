@@ -1,6 +1,18 @@
 # LC_POM
 Simulate polarized optical microscopy(POM) image from director field. 
 
+
+
+
+### Build documentation
+
+```
+cd docs
+sphinx-build -M html source build
+```
+
+Once built, the documentation can be explored via your internet browser by opening `lcpom/docs/build/html/index.html`
+
 ## Step 1: create director profile on a regular grid
 1. Route 1: 
 	- Generate *[ regular-gird director file ]* by ansatz-generate.py

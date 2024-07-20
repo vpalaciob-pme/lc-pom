@@ -4,5 +4,3 @@ Examples
 Gallery
 =======
 
-Sample scripts
-===============

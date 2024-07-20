@@ -140,7 +140,7 @@ def pom_image(lc: LCGrid, wl: float, Rp: np.ndarray, mode, update_ns, eps=1e-3):
            polymer dispersed liquid crystals." J. Appl. Phys. 69(9) 6380-6 (1991).
     """
     # Discretization parameters
-    Nx, Ny, Nz = lc.grid.shape
+    Nx, Ny, Nz = lc.grid.info.shape
 
     intensity = np.zeros((Nx, Ny))
     # Incident polarization

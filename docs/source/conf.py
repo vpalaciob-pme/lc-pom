@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../..'))  # Source code dir relative to this
 # -- Project information -----------------------------------------------------
 
 project = "LCPOM"
-copyright = "2023-present, LCPOM developers, i.e. Chuqiao Chen (Elise), Viviana Palacio-Betancur, Pablo Zubieta"
+copyright = "2023-present, University of Chicago"
 author = (
     "LCPOM developers: Chuqiao Chen (Elise), Viviana Palacio-Betancur, Pablo Zubieta"
 )
@@ -38,7 +38,8 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.napoleon"
+    "sphinx.ext.napoleon",
+    "sphinx_design"
 ]
 
 autosummary_generate = True
