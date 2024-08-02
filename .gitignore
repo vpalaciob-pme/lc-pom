@@ -1,4 +1,6 @@
 .venv
+.vscode
 docs/build
+docs/source/_autosummary
 .DS_Store
 __pycache__
