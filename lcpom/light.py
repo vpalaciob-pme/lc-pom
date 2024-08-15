@@ -1,40 +1,53 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Collection
 
 import numpy as np
-from plum import dispatch
+from plum import dispatch, parametric
 from scipy.interpolate import CubicSpline
 
 from lcpom.optics import FullTransmission, TransmissionMode
 from lcpom.utils.tools import normalized_gaussian
 
 
-@dataclass
-class Spectrum:
+class Spectrum(ABC):
     """
     Base class for light spectra.
     """
 
     wavelengths: Collection[float]
 
-    @dispatch
-    def __init__(self, wavelengths: Collection[float], skip_check: bool = False):
-        if not skip_check:
-            assert (
-                len(wavelengths) > 1
-            ), "For a single wavelength use Monochrome instead"
-        self.wavelengths = wavelengths
+    @abstractmethod
+    def __init__(self, wavelengths):
+        self.wavelengths = np.asarray(wavelengths)
 
 
 @dataclass
-class Monochrome(Spectrum):
+class Monochromatic(Spectrum):
     """
-    Special case of Spectrum for monochromatic light.
+    Spectrum for monochromatic light.
     """
 
     @dispatch
     def __init__(self, wavelength: float):
-        super().__init__([wavelength], skip_check=True)
+        super().__init__(np.array([wavelength]))
+
+    @dispatch
+    def __init__(self, wavelengths: Collection[float]):
+        assert len(wavelengths) == 1, "For a multiple wavelengths use Polychromatic instead"
+        super().__init__(wavelengths)
+
+
+@dataclass
+class Polychromatic(Spectrum):
+    """
+    Spectrum for polychromatic light.
+    """
+
+    @dispatch
+    def __init__(self, wavelengths: Collection[float], skip_check: bool = False):
+        assert len(wavelengths) > 1, "For a single wavelength use Monochromatic instead"
+        super().__init__(wavelengths)
 
 
 @dataclass
@@ -72,10 +85,18 @@ class LEDLamp(LightSource):
         return self.interpolator(wl)
 
 
+DEFAULT_SPECTRUM = Polychromatic(np.arange(0.400, 0.681, 0.014))
+
+
+@parametric
 class IncidentLight:
+    @classmethod
+    def __infer_type_parameter__(cls, *args, **kwargs):
+        return type(args[0]) if len(args) > 0 else type(DEFAULT_SPECTRUM)
+
     def __init__(
         self,
-        spectrum: Spectrum = Spectrum(np.arange(0.400, 0.681, 0.014)),
+        spectrum: Spectrum = DEFAULT_SPECTRUM,
         alpha: float = 90.0,
         exposure: float = 1.0,
         source: LightSource = GaussianLEDLamp(),

@@ -4,6 +4,7 @@ from itertools import product
 import numpy as np
 from plum import dispatch
 
+from lcpom.light import IncidentLight, Monochromatic, Polychromatic
 from lcpom.orderfield.lcsystems import LCGrid, refractive_indices
 from lcpom.utils.tools import abs2, rotation_matrix, tau
 
@@ -16,15 +17,21 @@ class POMImage:
 
     intensity: np.ndarray
 
-    def __init__(self, nx: int, ny: int):
+    @dispatch
+    def __init__(self, grid: LCGrid, light: IncidentLight[Monochromatic]):
         """
         Parameters
         ----------
 
-        nx, ny: int
-            Number of horizontal and vertical pixels, respectively.
+        grid: LCGrid
+
+        light: IncidentLight
         """
-        self.intensity = np.zeros((nx, ny))
+        # self.intensity = np.zeros((nx, ny))
+
+    @dispatch
+    def __init__(self, grid: LCGrid, light: IncidentLight[Polychromatic]):
+        pass
 
 
 @dataclass

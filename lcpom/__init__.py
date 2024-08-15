@@ -15,6 +15,8 @@ from .pom import *
 from .utils import *
 from .orderfield import *
 
+import lcpom.light
+
 def _isnotebook():
 	try:
 		shell = get_ipython().__class__.__name__

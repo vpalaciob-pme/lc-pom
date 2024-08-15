@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
@@ -149,8 +149,10 @@ PARAMS_5CB = ThreeBandModelParams(
 @dataclass
 class LCGrid:
     """
-    LCGrid is a class that handles the LC information once scalar and director order
-    fields are interpolated onto grid
+    LCGrid is a class that handles the LC information including the grid, scalar and
+    director order fields, where the interface is located and the z-component of normal to
+    the interface, and the material parameters necessary to estimate the refractive
+    indices.
     """
 
     grid: Grid
@@ -158,7 +160,7 @@ class LCGrid:
     director: np.ndarray
     interface: np.ndarray
     normal_z: np.ndarray
-    material_params: MaterialParams = PARAMS_5CB
+    material_params: MaterialParams = field(default_factory=PARAMS_5CB)
 
 
 class RefractiveIndicesUpdater:
@@ -200,13 +202,16 @@ def refractive_indices(wl: float, p: ThreeBandModelParams):
     return no, ne
 
 
-def interpolate(system: LCGrid, delta: float = 0.1, method="thin_plate_spline"):
+def interpolate(system: LCGrid, resolution: int = 1, method="thin_plate_spline"):
     """
-    Interp_frame interpolates the order field data onto a grid with finer resolution
+    Interpolates the order field data onto a grid with finer resolution.
     """
+    assert resolution >= 1
 
-    # Make grid according to size of the ellipsoid
-    grid = make_grid(system.L, delta=delta)
+    # Create finer grid
+    grid = system.grid
+    shape = tuple(resolution * n for n in grid.shape)
+    grid = Grid(grid.length, shape)
 
     # Interpolate data onto finer grid
     centroid = np.mean(system.coords, axis=1)
